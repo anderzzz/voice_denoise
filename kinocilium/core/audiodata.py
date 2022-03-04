@@ -70,6 +70,7 @@ class AudioPlainWAVData(_AudioUnlabelledDataset):
         if not p.is_dir():
             raise ValueError('File folder {} not found'.format(path_to_folder))
 
+        print ('ab11')
         if filter_on_suffix is None:
             filter_condition = '*'
         else:
