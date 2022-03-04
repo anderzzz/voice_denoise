@@ -15,6 +15,8 @@ import torch
 from torch.utils.data import DataLoader
 from torch import optim
 
+import audiodata
+
 class LearnerInterface(metaclass=abc.ABCMeta):
     '''Formal interface for the Learner subclasses. Any class inheriting `_Learner` will have to satisfy this
     interface, otherwise it will not instantiate
@@ -61,6 +63,8 @@ class _Learner(LearnerInterface):
                        random_seed=None,
                        f_out=sys.stdout,
                        save_tmp_name='model_in_training',
+                       dataset_type='plain wav',
+                       dataset_kwargs={},
                        loader_batch_size=16,
                        num_workers=0,
                        deterministic=True):
@@ -69,6 +73,8 @@ class _Learner(LearnerInterface):
         self.inp_random_seed = random_seed
         self.inp_f_out = f_out
         self.inp_save_tmp_name = save_tmp_name
+        self.inp_dataset_type = dataset_type
+        self.inp_dataset_kwargs = dataset_kwargs
         self.inp_loader_batch_size = loader_batch_size
         self.inp_num_workers = num_workers
         self.inp_deterministic = deterministic
@@ -82,8 +88,8 @@ class _Learner(LearnerInterface):
             torch.backends.cudnn.benchmark = False
 
         # Dataset
-        raise NotImplementedError('The dataset loading routines not implemented')
-        self.dataset = []
+        self.dataset = audiodata.factory.create(self.inp_dataset_type, **self.inp_dataset_kwargs)
+        raise RuntimeError('Implementation Limit Dude')
         self.dataset_size = len(self.dataset)
         self.dataloader = DataLoader(self.dataset,
                                      batch_size=self.inp_loader_batch_size,
