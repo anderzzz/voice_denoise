@@ -14,6 +14,10 @@ abs_data_path = os.path.join(os.path.join(os.path.dirname(__file__), 'data'), DA
 
 from kinocilium.core.audiodata import factory
 
-data = factory.create('plain wav', path_to_folder=abs_data_path, read_metadata=False)
-for dd in data:
-    assert set(dd.keys()) == CHECK_KEYS
+def test_simple_read():
+    data = factory.create('plain wav', path_to_folder=abs_data_path, read_metadata=False)
+    for dd in data:
+        assert set(dd.keys()) == CHECK_KEYS
+
+if __name__ == '__main__':
+    test_simple_read()
