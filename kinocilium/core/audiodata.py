@@ -15,9 +15,14 @@ class _AudioUnlabelledDataset(Dataset):
     '''Parent class for unlabelled audio data of the PyTorch Dataset format
 
     '''
-    def __init__(self, file_path_getter):
+    def __init__(self, file_path_getter, len_file_paths, read_metadata):
         super(_AudioUnlabelledDataset, self).__init__()
         self.file_path_getter = file_path_getter
+        self.len_file_paths = len_file_paths
+        self.read_metadata = read_metadata
+
+    def __len__(self):
+        return self.len_file_paths
 
     def __getitem__(self, idx):
         '''Retrieve raw data from disk
@@ -29,15 +34,14 @@ class _AudioUnlabelledDataset(Dataset):
             raw_data (dict)
 
         '''
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-        elif isinstance(idx, int):
-            idx = [idx]
+        path = self.file_path_getter(idx)
+        if self.read_metadata:
+            metadata = torchaudio.info(path)
+        else:
+            metadata = None
+        waveform, sample_rate = torchaudio.load(path)
 
-        for id in idx:
-            path = self.file_path_getter(id)
-            print (path)
-            raise RuntimeError
+        return {'waveform' : waveform, 'sample_rate' : sample_rate, 'metadata' : metadata}
 
 class _AudioLabelledDataset(Dataset):
     '''Parent class for labelled audio data of the PyTorch Dataset format
@@ -65,19 +69,22 @@ class AudioPlainWAVData(_AudioUnlabelledDataset):
     '''Bla bla
 
     '''
-    def __init__(self, path_to_folder, filter_on_suffix):
+    def __init__(self, path_to_folder, filter_on_suffix,
+                 read_metadata=True):
         p = Path(path_to_folder)
         if not p.is_dir():
             raise ValueError('File folder {} not found'.format(path_to_folder))
 
-        print ('ab11')
         if filter_on_suffix is None:
             filter_condition = '*'
         else:
             filter_condition = '*.{}'.format(filter_on_suffix)
         file_paths = list(p.glob(filter_condition))
+        n_file_paths = len(file_paths)
 
-        super(AudioPlainWAVData, self).__init__(lambda idx: file_paths[idx])
+        super(AudioPlainWAVData, self).__init__(file_path_getter=lambda idx: file_paths[idx],
+                                                len_file_paths=n_file_paths,
+                                                read_metadata=read_metadata)
 
 class AudioMSSNSDDataBuilder(object):
     def __init__(self):
@@ -90,9 +97,10 @@ class AudioPlainWAVDataBuilder(object):
     def __init__(self):
         self._instance = None
 
-    def __call__(self, path_to_folder, filter_on_suffix='wav'):
+    def __call__(self, path_to_folder, filter_on_suffix='wav', read_metadata=True):
         self._instance = AudioPlainWAVData(path_to_folder=path_to_folder,
-                                           filter_on_suffix=filter_on_suffix)
+                                           filter_on_suffix=filter_on_suffix,
+                                           read_metadata=read_metadata)
 
         return self._instance
 
