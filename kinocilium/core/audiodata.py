@@ -202,7 +202,6 @@ class MSSNSDNoisySpeechData(_AudioPairedDataset):
         '''
         p_file_noisyspeech = Path(self._file_paths[idx])
         all_numbers = re.findall(r"[-+]?(?:\d*\.\d+|\d+)", p_file_noisyspeech.name)
-        print (all_numbers)
         if len(all_numbers) != 3:
             raise RuntimeError('Encountered file without three numbers: {}'.format(p_file_noisyspeech.name))
 
@@ -228,10 +227,13 @@ class AudioMSSNSDDataBuilder(object):
         self._instance = None
 
     def __call__(self, path_to_noisyspeech, path_to_cleanspeech, path_to_noise,
+                 return_clean_counterpart=True, filter_on_snr='[0-9]+\.[0-9]+',
                  read_metadata=True):
         self._instance = MSSNSDNoisySpeechData(path_to_noisyspeech=path_to_noisyspeech,
                                                path_to_cleanspeech=path_to_cleanspeech,
                                                path_to_noise=path_to_noise,
+                                               return_clean_counterpart=return_clean_counterpart,
+                                               filter_on_snr=filter_on_snr,
                                                read_metadata=True)
 
         return self._instance
