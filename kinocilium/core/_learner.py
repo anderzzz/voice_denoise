@@ -30,7 +30,9 @@ class LearnerInterface(metaclass=abc.ABCMeta):
                 hasattr(subclass, 'save_model') and
                 callable(subclass.save_model) and
                 hasattr(subclass, 'load_model') and
-                callable(subclass.load_model))
+                callable(subclass.load_model) and
+                hasattr(subclass, 'inject_model') and
+                callable(subclass.inject_model))
 
     @abc.abstractmethod
     def train(self, n_epochs: int):
@@ -50,6 +52,11 @@ class LearnerInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def load_model(self, path: str):
         '''Save model state to file'''
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def inject_model(self, nn_module):
+        '''Inject the pytorch network'''
         raise NotImplementedError
 
 
