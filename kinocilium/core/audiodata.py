@@ -85,14 +85,19 @@ class _AudioPairedDataset(Dataset):
         if self.read_metadata:
             metadata = torchaudio.info(path_file)
             metadata_counterpart = torchaudio.info(path_file_counterpart)
+        else:
+            metadata = None
+            metadata_counterpart = None
 
         waveform, sample_rate = torchaudio.load(path_file)
         waveform_counterpart, sample_rate_counterpart = torchaudio.load(path_file_counterpart)
-        print (waveform)
-        print (waveform_counterpart)
-        raise RuntimeError
 
-        return None
+        return {'waveform_{}'.format(self.keys_filetype[0]) : waveform,
+                'sample_rate_{}'.format(self.keys_filetype[0]) : sample_rate,
+                'metadata_{}'.format(self.keys_filetype[0]) : metadata,
+                'waveform_{}'.format(self.keys_filetype[1]) : waveform_counterpart,
+                'sample_rate_{}'.format(self.keys_filetype[1]) : sample_rate_counterpart,
+                'metadata_{}'.format(self.keys_filetype[1]) : metadata_counterpart}
 
 class NoisySpeechLabelledData(_AudioLabelledDataset):
     '''Bla bla
@@ -196,7 +201,8 @@ class MSSNSDNoisySpeechData(_AudioPairedDataset):
 
         '''
         p_file_noisyspeech = Path(self._file_paths[idx])
-        all_numbers = re.findall('[0-9]+\.?\d+', p_file_noisyspeech.name)
+        all_numbers = re.findall(r"[-+]?(?:\d*\.\d+|\d+)", p_file_noisyspeech.name)
+        print (all_numbers)
         if len(all_numbers) != 3:
             raise RuntimeError('Encountered file without three numbers: {}'.format(p_file_noisyspeech.name))
 
