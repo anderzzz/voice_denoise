@@ -4,6 +4,7 @@ Written By: Anders Ohrn, March 2022
 
 '''
 from pathlib import Path
+import re
 
 import pandas as pd
 
@@ -69,8 +70,18 @@ class _AudioPairedDataset(Dataset):
         '''Bla bla
 
         '''
-        for file_type_path in self.file_path_getter(idx):
-            raise NotImplementedError()
+        path_file, path_file_counterpart = self.file_path_getter(idx)
+        if self.read_metadata:
+            metadata = torchaudio.info(path_file)
+            metadata_counterpart = torchaudio.info(path_file_counterpart)
+
+        waveform, sample_rate = torchaudio.load(path_file)
+        waveform_counterpart, sample_rate_counterpart = torchaudio.load(path_file_counterpart)
+        print (waveform)
+        print (waveform_counterpart)
+        raise RuntimeError
+
+        return None
 
 class NoisySpeechLabelledData(_AudioLabelledDataset):
     '''Bla bla
@@ -115,31 +126,68 @@ class MSSNSDNoisySpeechData(_AudioPairedDataset):
     CLEAN_FNAME_ROOT = 'clnsp'
     NOISE_FNAME_ROOT = 'noisy'
     SPEECH2NOISE_ROOT = 'SNRdb'
+    FILE_SUFFIX = 'wav'
 
     def __init__(self, path_to_noisyspeech, path_to_cleanspeech, path_to_noise,
+                 return_clean_counterpart=True, filter_on_snr='[0-9]+\.[0-9]+',
                  read_metadata=True):
-        p_noisyspeech = Path(path_to_noisyspeech)
-        if not p_noisyspeech.is_dir():
-            raise ValueError('File folder {} not found'.format(path_to_noisyspeech))
-        p_cleanspeech = Path(path_to_cleanspeech)
-        if not p_cleanspeech.is_dir():
-            raise ValueError('File folder {} not found'.format(path_to_cleanspeech))
-        p_noise = Path(path_to_noise)
-        if not p_noise.is_dir():
-            raise ValueError('File folder {} not found'.format(path_to_noise))
-        self._file_paths = list(p_noisyspeech.glob('*'))
+        self.p_noisyspeech = Path(path_to_noisyspeech)
+        if not self.p_noisyspeech.is_dir():
+            raise ValueError('File folder {} not found'.format(self.path_to_noisyspeech))
+        self.p_cleanspeech = Path(path_to_cleanspeech)
+        if not self.p_cleanspeech.is_dir():
+            raise ValueError('File folder {} not found'.format(self.path_to_cleanspeech))
+        self.p_noise = Path(path_to_noise)
+        if not self.p_noise.is_dir():
+            raise ValueError('File folder {} not found'.format(self.path_to_noise))
+
+        self.return_clean_counterpart = return_clean_counterpart
+        if self.return_clean_counterpart:
+            ret_keys = ('noisy_speech', 'clean_speech')
+        else:
+            ret_keys = ('noisy_speech', 'noise')
+
+        re_expr = '{}[0-9]+_{}_{}_{}[0-9]+.{}'.format(self.NOISE_FNAME_ROOT, self.SPEECH2NOISE_ROOT,
+                                                      filter_on_snr,
+                                                      self.CLEAN_FNAME_ROOT, self.FILE_SUFFIX)
+        re_expr_ = re.compile(re_expr)
+        self._file_paths = [s for s in self.p_noisyspeech.glob('*') if re_expr_.match(s.name)]
         n_file_paths = len(self._file_paths)
 
         super(MSSNSDNoisySpeechData, self).__init__(file_paths_getter=self._p_getter,
                                                     len_files_path=n_file_paths,
-                                                    keys_filetype=['noisy_speech', 'clean_speech', 'noise'],
+                                                    keys_filetype=ret_keys,
                                                     read_metadata=read_metadata)
 
     def _p_getter(self, idx):
-        f_noisyspeech = self._file_paths[idx]
-        print (f_noisyspeech)
-        ### SPLIT UP NAME AND INFER OTHER FILE PATHS
-        raise RuntimeError
+        '''Bla bla
+
+        '''
+        p_file_noisyspeech = Path(self._file_paths[idx])
+        all_numbers = re.findall('[0-9]+\.?\d+', p_file_noisyspeech.name)
+        if len(all_numbers) != 3:
+            raise RuntimeError('Encountered file without three numbers: {}'.format(p_file_noisyspeech.name))
+
+        noisy_file_name = '{}{}_{}_{}.{}'.format(self.NOISE_FNAME_ROOT,
+                                                 all_numbers[0],
+                                                 self.SPEECH2NOISE_ROOT,
+                                                 all_numbers[1],
+                                                 self.FILE_SUFFIX)
+        clean_file_name = '{}{}.{}'.format(self.CLEAN_FNAME_ROOT,
+                                           all_numbers[2],
+                                           self.FILE_SUFFIX)
+
+        print (p_file_noisyspeech)
+        print (self.p_cleanspeech.joinpath(clean_file_name))
+
+        if self.return_clean_counterpart:
+            ret_counterpart = self.p_cleanspeech.joinpath(clean_file_name)
+        else:
+            ret_counterpart = self.p_noisyspeech.joinpath(noisy_file_name)
+
+        print (p_file_noisyspeech, ret_counterpart)
+
+        return (p_file_noisyspeech, ret_counterpart)
 
     def _match_clean(self, name):
         pass
