@@ -7,12 +7,10 @@ DATA_SUBFOLDER = 'data1'
 # Constants: check values to test against
 CHECK_KEYS = {'waveform', 'sample_rate', 'metadata'}
 
-import pytest
-
 import os
 abs_data_path = os.path.join(os.path.join(os.path.dirname(__file__), 'data'), DATA_SUBFOLDER)
 
-from kinocilium.core.audiodata import factory
+from kinocilium.core.data_getters import factory
 
 def test_simple_read():
     data = factory.create('plain wav', path_to_folder=abs_data_path, read_metadata=False)

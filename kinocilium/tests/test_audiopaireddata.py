@@ -11,12 +11,10 @@ CHECK_KEYS_2 = {'waveform_noisy_speech', 'sample_rate_noisy_speech', 'metadata_n
                 'waveform_noise', 'sample_rate_noise', 'metadata_noise'}
 N_FILES_SNR40 = 1
 
-import pytest
-
 import os
 abs_data_path = os.path.join(os.path.join(os.path.dirname(__file__), 'data'), DATA_SUBFOLDER)
 
-from kinocilium.core.audiodata import factory
+from kinocilium.core.data_getters import factory
 
 def test_basic_retrieval():
     data = factory.create('ms-snsd',

@@ -15,8 +15,6 @@ import torch
 from torch.utils.data import DataLoader
 from torch import optim
 
-import audiodata
-
 class LearnerInterface(metaclass=abc.ABCMeta):
     '''Formal interface for the Learner subclasses. Any class inheriting `_Learner` will have to satisfy this
     interface, otherwise it will not instantiate
