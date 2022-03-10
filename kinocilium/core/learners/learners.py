@@ -4,9 +4,9 @@ Written by: Anders Ohrn, March 2022
 
 '''
 import sys
-import torch
 
-from _learner import _Learner, progress_bar
+from kinocilium.core.learners._learner import _Learner
+
 
 class LearnerPairedAudio(_Learner):
     '''Bla bla

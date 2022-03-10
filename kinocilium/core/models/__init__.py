@@ -1,40 +1,21 @@
-'''Bla bla
+'''Initialization upon import of `models`
+
+The import generates:
+ * Access to `factory`. This is the model object creation factory. It provides a uniform interface to all
+models.
+
+Written by: Anders Ohrn, March 2020
 
 '''
+from kinocilium.core._factory import _Factory
 from kinocilium.core.models.conv_tasnet import ConvTasNetModelBuilder
 
-class AudioModelFactory(object):
-    '''Interface to audio model factories.
-
-    Typical usage involves the invocation of the `create` method, which returns a specific audio model
+class AudioModelFactory(_Factory):
+    '''Factory method for model object creation. Documented in parent class.
 
     '''
     def __init__(self):
-        self._builders = {}
-
-    def register_builder(self, key, builder):
-        '''Register a builder
-
-        Args:
-            key (str): Key to the builder, which can be invoked by `create` method
-            builder: An Audio Model Builder instance
-
-        '''
-        self._builders[key] = builder
-
-    @property
-    def keys(self):
-        return self._builders.keys()
-
-    def create(self, key, **kwargs):
-        '''Method to create audio data set through uniform interface
-
-        '''
-        try:
-            builder = self._builders[key]
-        except KeyError:
-            raise ValueError('Unregistered data builder: {}'.format(key))
-        return builder(**kwargs)
+        super(AudioModelFactory, self).__init__()
 
 factory = AudioModelFactory()
 factory.register_builder('conv_tasnet', ConvTasNetModelBuilder())
