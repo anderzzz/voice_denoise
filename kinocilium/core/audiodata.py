@@ -263,7 +263,7 @@ class AudioDataFactory(object):
 
         Args:
             key (str): Key to the builder, which can be invoked by `create` method
-            builder: A Fungi Data Builder instance
+            builder: An Audio Data Builder instance
 
         '''
         self._builders[key] = builder
