@@ -82,6 +82,7 @@ class SeparationBlock(nn.Module):
     def __init__(self,
                  n_repeats,
                  n_blocks,
+                 in_channels,
                  n_bottleneck_channels,
                  n_hidden_channels,
                  n_sources,
@@ -91,6 +92,7 @@ class SeparationBlock(nn.Module):
 
         self.n_repeats = n_repeats
         self.n_blocks = n_blocks
+        self.in_channels = in_channels
         self.n_bottleneck_channels = n_bottleneck_channels
         self.n_hidden_channels = n_hidden_channels
         self.n_sources = n_sources
@@ -100,8 +102,8 @@ class SeparationBlock(nn.Module):
         # in a pointwise fashion
         self.layer_init = nn.Sequential(
             nn.LayerNorm(),
-            nn.Conv1d(in_channels=self.n_bottleneck_channels,
-                      out_channels=self.n_hidden_channels,
+            nn.Conv1d(in_channels=self.in_channels,
+                      out_channels=self.n_bottleneck_channels,
                       kernel_size=1,
                       device=device,
                       dtype=dtype)
@@ -155,13 +157,15 @@ class ConvTasNet(nn.Module):
     Args:
         in_channels (int): Number of channels of input audio. Mono audio implies `in_channels=1`.
         n_sources (int): Number of sources to separate input audio into.
-        segment_length (int): Length of overlapping audio segments. L in paper.
         n_encoder_filters (int): Number of encoder filters. N in paper.
-        n_residual_channels (int): Number of channels in residual path of separation module. B in paper.
-        n_skip_channels (int): Number of channels in skip path of separation module. Sc in paper.
+        n_encoder_kernel_width (int): Length of overlapping audio segments. L in paper.
         n_repeats (int): Number of convolution layer repeats of separation module. R in paper.
         n_blocks (int): Number of convolution blocks in each layer of separation module. X in paper.
-
+        n_bottleneck_channels (int): Number of channels in residual path of separation module. B in paper.
+        n_skip_channels (int): Number of channels in skip path of separation module. Sc in paper.
+        n_hidden_channels (int): Number of hidden channels in the separation module. H in paper.
+        device (str):
+        dtype (str):
 
     '''
     def __init__(self,
@@ -169,12 +173,11 @@ class ConvTasNet(nn.Module):
                  n_sources,
                  n_encoder_filters,
                  n_encoder_kernel_width,
-                 n_residual_channels,
-                 n_skip_channels,
-                 filter_length,
                  n_repeats,
                  n_blocks,
-                 stride,
+                 n_bottleneck_channels,
+                 n_skip_channels,
+                 n_hidden_channels,
                  device=None,
                  dtype=None):
         super(ConvTasNet, self).__init__()
@@ -210,17 +213,19 @@ class ConvTasNet(nn.Module):
                                           kernel_size=self.n_encoder_window,
                                           bias=False,
                                           stride=1,
-#                                          padding=padding,
-#                                          padding_mode='zeros',
                                           device=device,
                                           dtype=dtype)
 
         self.n_blocks = n_blocks
         self.n_repeats = n_repeats
+        self.n_bottleneck_filters = n_bottleneck_channels
+        self.n_skip_channels = n_skip_channels
+        self.n_hidden_channels = n_hidden_channels
         self.separation_block = SeparationBlock(n_repeats=self.n_repeats,
                                                 n_blocks=self.n_blocks,
-                                                n_bottleneck_channels=self.n_encoder_filters,
-                                                n_hidden_channels=XXX,
+                                                in_channels=self.n_encoder_filters,
+                                                n_bottleneck_channels=self.n_bottleneck_filters,
+                                                n_hidden_channels=self.n_hidden_channels,
                                                 n_sources=self.n_sources,
                                                 device=device,
                                                 dtype=dtype)
