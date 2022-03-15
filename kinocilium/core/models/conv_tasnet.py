@@ -9,7 +9,7 @@ Written by: Anders Ohrn, March 2022
 import torch
 from torch import nn
 
-from _blocks import PointwiseConv1D, DepthWiseConv1D
+from _blocks import PointwiseConv1d, DepthWiseConv1d
 
 class _SeparableConv1DBasicBlock(nn.Module):
     '''Separable 1D convolution block with normalization and activation
@@ -30,7 +30,7 @@ class _SeparableConv1DBasicBlock(nn.Module):
         super(_SeparableConv1DBasicBlock, self).__init__()
 
         self.separable_conv1d_basic_block = nn.Sequential(
-            PointwiseConv1D(in_channels=in_channels,
+            PointwiseConv1d(in_channels=in_channels,
                             out_channels=out_channels,
                             bias=bias,
                             device=device,
@@ -38,7 +38,7 @@ class _SeparableConv1DBasicBlock(nn.Module):
             nn.PReLU(device=device,
                      dtype=dtype),
             NORM,
-            DepthWiseConv1D(in_channels=out_channels,
+            DepthWiseConv1d(in_channels=out_channels,
                             out_channels=out_channels,
                             bias=bias,
                             kernel_size=kernel_size,
@@ -60,12 +60,29 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
     '''Bla bla
 
     '''
-    def __init__(self):
+    def __init__(self,
+                 in_channels,
+                 hidden_channels,
+                 out_channels_skip,
+                 out_channels_residual,
+                 device=None,
+                 dtype=None):
         super(SeparableConv1DNormBlockSkipRes, self).__init__()
 
+        self.in_channels = in_channels
+        self.hidden_channels = hidden_channels
+        self.out_channels_skip = out_channels_skip
+        self.out_channels_residual = out_channels_residual
+
         self.separable_conv1d_inner = _SeparableConv1DBasicBlock()
-        self.skip_connection = PointwiseConv1D()
-        self.residual = PointwiseConv1D()
+        self.skip_connection = PointwiseConv1d(in_channels=self.hidden_channels,
+                                               out_channels=self.out_channels_skip,
+                                               device=device,
+                                               dtype=dtype)
+        self.residual = PointwiseConv1d(in_channels=self.hidden_channels,
+                                        out_channels=self.out_channels_residual,
+                                        device=device,
+                                        dtype=dtype)
 
     def forward(self, x):
         x = self.separable_conv1d_inner(x)
@@ -84,6 +101,7 @@ class SeparationBlock(nn.Module):
                  n_blocks,
                  in_channels,
                  n_bottleneck_channels,
+                 n_skip_channels,
                  n_hidden_channels,
                  n_sources,
                  device=None,
@@ -94,6 +112,7 @@ class SeparationBlock(nn.Module):
         self.n_blocks = n_blocks
         self.in_channels = in_channels
         self.n_bottleneck_channels = n_bottleneck_channels
+        self.n_skip_channels = n_skip_channels
         self.n_hidden_channels = n_hidden_channels
         self.n_sources = n_sources
 
@@ -102,11 +121,10 @@ class SeparationBlock(nn.Module):
         # in a pointwise fashion
         self.layer_init = nn.Sequential(
             nn.LayerNorm(),
-            nn.Conv1d(in_channels=self.in_channels,
-                      out_channels=self.n_bottleneck_channels,
-                      kernel_size=1,
-                      device=device,
-                      dtype=dtype)
+            PointwiseConv1d(in_channels=self.in_channels,
+                            out_channels=self.n_bottleneck_channels,
+                            device=device,
+                            dtype=dtype)
         )
 
         #
@@ -115,17 +133,21 @@ class SeparationBlock(nn.Module):
         for k_repeat in range(self.n_repeats):
             for k_block in range(self.n_blocks):
                 self.layer_modules[self._make_key(k_repeat, k_block)] = \
-                    SeparableConv1DNormBlockSkipRes()
+                    SeparableConv1DNormBlockSkipRes(in_channels=self.n_bottleneck_channels,
+                                                    hidden_channels=self.n_hidden_channels,
+                                                    out_channels_skip=self.n_skip_channels,
+                                                    out_channels_residual=self.n_bottleneck_channels,
+                                                    device=device,
+                                                    dtype=dtype)
 
         #
         # Concluding activation, transformation in a pointwise fashion and mapping into range 0.0-1.0
         self.layer_post = nn.Sequential(
             nn.PReLU(),
-            nn.Conv1d(in_channels=self.n_bottleneck_channels,
-                      out_channels=self.n_sources * self.n_bottleneck_channels,
-                      kernel_size=1,
-                      device=device,
-                      dtype=dtype),
+            PointwiseConv1d(in_channels=self.n_bottleneck_channels,
+                           out_channels=self.n_sources * self.n_bottleneck_channels,
+                           device=device,
+                           dtype=dtype),
             nn.Sigmoid()
         )
 
@@ -225,6 +247,7 @@ class ConvTasNet(nn.Module):
                                                 n_blocks=self.n_blocks,
                                                 in_channels=self.n_encoder_filters,
                                                 n_bottleneck_channels=self.n_bottleneck_filters,
+                                                n_skip_channels=self.n_skip_channels,
                                                 n_hidden_channels=self.n_hidden_channels,
                                                 n_sources=self.n_sources,
                                                 device=device,

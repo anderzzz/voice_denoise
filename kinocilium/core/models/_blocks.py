@@ -4,7 +4,7 @@
 import torch
 from torch import nn
 
-class DepthWiseConv1D(nn.Module):
+class DepthWiseConv1d(nn.Module):
     '''Depthwise 1D convolution. Wrapper over `Conv1d`.
 
     '''
@@ -20,7 +20,7 @@ class DepthWiseConv1D(nn.Module):
                  padding_mode='zeros',
                  device=None,
                  dtype=None):
-        super(DepthWiseConv1D, self).__init__()
+        super(DepthWiseConv1d, self).__init__()
 
         self.depthwise_conv = nn.Conv1d(in_channels=in_channels,
                                         out_channels=out_channels,
@@ -39,7 +39,7 @@ class DepthWiseConv1D(nn.Module):
 
         return x
 
-class PointwiseConv1D(nn.Module):
+class PointwiseConv1d(nn.Module):
     '''Pointwise 1D convolution.
 
     '''
@@ -49,7 +49,7 @@ class PointwiseConv1D(nn.Module):
                  bias=True,
                  device=None,
                  dtype=None):
-        super(PointwiseConv1D, self).__init__()
+        super(PointwiseConv1d, self).__init__()
 
         self.pointwise_conv = nn.Conv1d(in_channels=in_channels,
                                         out_channels=out_channels,
