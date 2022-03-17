@@ -11,55 +11,18 @@ from torch import nn
 
 from _blocks import PointwiseConv1d, DepthWiseConv1d
 
-class _SeparableConv1DBasicBlock(nn.Module):
-    '''Separable 1D convolution block with normalization and activation
-
-    This is the
-    '''
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 dilation,
-                 stride=1,
-                 padding=0,
-                 bias=True,
-                 padding_mode='zeros',
-                 device=None,
-                 dtype=None):
-        super(_SeparableConv1DBasicBlock, self).__init__()
-
-        self.separable_conv1d_basic_block = nn.Sequential(
-            PointwiseConv1d(in_channels=in_channels,
-                            out_channels=out_channels,
-                            bias=bias,
-                            device=device,
-                            dtype=dtype),
-            nn.PReLU(device=device,
-                     dtype=dtype),
-            NORM,
-            DepthWiseConv1d(in_channels=out_channels,
-                            out_channels=out_channels,
-                            bias=bias,
-                            kernel_size=kernel_size,
-                            dilation=dilation,
-                            stride=stride,
-                            padding=padding,
-                            padding_mode=padding_mode,
-                            device=device,
-                            dtype=dtype),
-        nn.PReLU(device=device,
-                 dtype=dtype),
-        NORM
-        )
-
-    def forward(self, x):
-        return self.separable_conv1d_basic_block(x)
+NORM_EPS = 1e-08
 
 class SeparableConv1DNormBlockSkipRes(nn.Module):
     '''Bla bla
 
     '''
+    INNER_1D_CONV_BLOCK_ORDER = ['pointwise convolution',
+                                 'first non-linearity',
+                                 'first normalization',
+                                 'depthwise convolution',
+                                 'second non-linearity',
+                                 'second normalization']
     def __init__(self,
                  in_channels,
                  hidden_channels,
@@ -67,6 +30,8 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
                  out_channels_residual,
                  kernel_size,
                  dilation,
+                 padding,
+                 bias,
                  device=None,
                  dtype=None):
         super(SeparableConv1DNormBlockSkipRes, self).__init__()
@@ -77,11 +42,40 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
         self.out_channels_residual = out_channels_residual
         self.kernel_size = kernel_size
         self.dilation = dilation
+        self.padding = padding
+        self.bias = bias
 
-        self.separable_conv1d_inner = _SeparableConv1DBasicBlock(in_channels=self.in_channels,
-                                                                 out_channels=self.hidden_channels,
-                                                                 kernel_size=self.kernel_size,
-                                                                 dilation=self.dilation)
+        self.separable_conv1d_inner = nn.ModuleDict()
+        self.separable_conv1d_inner['first non-linearity'] = nn.PReLU(device=device, dtype=dtype)
+        self.separable_conv1d_inner['second non-linearity'] = nn.PReLU(device=device, dtype=dtype)
+        self.separable_conv1d_inner['pointwise convolution'] = \
+            PointwiseConv1d(in_channels=self.in_channels,
+                            out_channels=self.hidden_channels,
+                            bias=self.bias,
+                            device=device,
+                            dtype=dtype)
+        self.separable_conv1d_inner['depthwise convolution'] = \
+            DepthWiseConv1d(in_channels=self.hidden_channels,
+                            out_channels=self.hidden_channels,
+                            bias=self.bias,
+                            kernel_size=self.kernel_size,
+                            dilation=self.dilation,
+                            stride=1,
+                            padding=self.padding,
+                            device=device,
+                            dtype=dtype)
+        self.separable_conv1d_inner['first normalization'] = nn.GroupNorm(num_groups=1,
+                                                                          num_channels=self.hidden_channels,
+                                                                          eps=NORM_EPS,
+                                                                          device=device,
+                                                                          dtype=dtype)
+        self.separable_conv1d_inner['second normalization'] = nn.GroupNorm(num_groups=1,
+                                                                           num_channels=self.hidden_channels,
+                                                                           eps=NORM_EPS,
+                                                                           device=device,
+                                                                           dtype=dtype)
+        assert list(self.separable_conv1d_inner.keys()) == self.INNER_1D_CONV_BLOCK_ORDER
+
         self.skip_connection = PointwiseConv1d(in_channels=self.hidden_channels,
                                                out_channels=self.out_channels_skip,
                                                device=device,
@@ -92,7 +86,8 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
                                         dtype=dtype)
 
     def forward(self, x):
-        x = self.separable_conv1d_inner(x)
+        for key in self.INNER_1D_CONV_BLOCK_ORDER:
+            x = self.separable_conv1d_inner[key](x)
         x_skip = self.skip_connection(x)
         x_res = self.residual(x)
 
@@ -112,6 +107,7 @@ class SeparationBlock(nn.Module):
                  n_hidden_channels,
                  n_separation_conv_kernel_width,
                  conv_dilator,
+                 conv_bias,
                  n_sources,
                  device=None,
                  dtype=None):
@@ -125,13 +121,14 @@ class SeparationBlock(nn.Module):
         self.n_hidden_channels = n_hidden_channels
         self.n_separation_conv_kernel_width = n_separation_conv_kernel_width
         self.conv_dilator = conv_dilator
+        self.conv_bias = conv_bias
         self.n_sources = n_sources
 
         #
         # Initial step in separation module where encoded tensor linearly transformed into hidden channels
         # in a pointwise fashion
         self.layer_init = nn.Sequential(
-            nn.LayerNorm(),
+            nn.GroupNorm(num_groups=1, num_channels=self.in_channels, eps=NORM_EPS),
             PointwiseConv1d(in_channels=self.in_channels,
                             out_channels=self.n_bottleneck_channels,
                             device=device,
@@ -159,6 +156,8 @@ class SeparationBlock(nn.Module):
                                                     out_channels_residual=self.n_bottleneck_channels,
                                                     kernel_size=self.n_separation_conv_kernel_width,
                                                     dilation=self._dilator(k_block),
+                                                    padding=self._dilator(k_block),
+                                                    bias=self.conv_bias,
                                                     device=device,
                                                     dtype=dtype)
 
@@ -195,6 +194,7 @@ class SeparationBlock(nn.Module):
     def _make_key(self, k_repeat, k_block):
         return 'middle_conv1d_repeat_{}_block_{}'.format(k_repeat, k_block)
 
+
 class ConvTasNet(nn.Module):
     '''Bla bla
 
@@ -223,6 +223,8 @@ class ConvTasNet(nn.Module):
                  n_skip_channels,
                  n_hidden_channels,
                  n_separation_conv_kernel_width,
+                 conv_dilator,
+                 conv_bias,
                  device=None,
                  dtype=None):
         super(ConvTasNet, self).__init__()
@@ -267,6 +269,8 @@ class ConvTasNet(nn.Module):
         self.n_skip_channels = n_skip_channels
         self.n_hidden_channels = n_hidden_channels
         self.n_separation_conv_kernel_width = n_separation_conv_kernel_width
+        self.conv_dilator = conv_dilator
+        self.conv_bias = conv_bias
         self.separation_block = SeparationBlock(n_repeats=self.n_repeats,
                                                 n_blocks=self.n_blocks,
                                                 in_channels=self.n_encoder_filters,
@@ -274,6 +278,8 @@ class ConvTasNet(nn.Module):
                                                 n_skip_channels=self.n_skip_channels,
                                                 n_hidden_channels=self.n_hidden_channels,
                                                 n_separation_conv_kernel_width=self.n_separation_conv_kernel_width,
+                                                conv_dilator=self.conv_dilator,
+                                                conv_bias=self.conv_bias,
                                                 n_sources=self.n_sources,
                                                 device=device,
                                                 dtype=dtype)
