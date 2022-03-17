@@ -65,6 +65,8 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
                  hidden_channels,
                  out_channels_skip,
                  out_channels_residual,
+                 kernel_size,
+                 dilation,
                  device=None,
                  dtype=None):
         super(SeparableConv1DNormBlockSkipRes, self).__init__()
@@ -73,8 +75,13 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
         self.hidden_channels = hidden_channels
         self.out_channels_skip = out_channels_skip
         self.out_channels_residual = out_channels_residual
+        self.kernel_size = kernel_size
+        self.dilation = dilation
 
-        self.separable_conv1d_inner = _SeparableConv1DBasicBlock()
+        self.separable_conv1d_inner = _SeparableConv1DBasicBlock(in_channels=self.in_channels,
+                                                                 out_channels=self.hidden_channels,
+                                                                 kernel_size=self.kernel_size,
+                                                                 dilation=self.dilation)
         self.skip_connection = PointwiseConv1d(in_channels=self.hidden_channels,
                                                out_channels=self.out_channels_skip,
                                                device=device,
@@ -103,6 +110,8 @@ class SeparationBlock(nn.Module):
                  n_bottleneck_channels,
                  n_skip_channels,
                  n_hidden_channels,
+                 n_separation_conv_kernel_width,
+                 conv_dilator,
                  n_sources,
                  device=None,
                  dtype=None):
@@ -114,6 +123,8 @@ class SeparationBlock(nn.Module):
         self.n_bottleneck_channels = n_bottleneck_channels
         self.n_skip_channels = n_skip_channels
         self.n_hidden_channels = n_hidden_channels
+        self.n_separation_conv_kernel_width = n_separation_conv_kernel_width
+        self.conv_dilator = conv_dilator
         self.n_sources = n_sources
 
         #
@@ -129,6 +140,15 @@ class SeparationBlock(nn.Module):
 
         #
         # The separable convolution blocks in a number of repeats
+        if self.conv_dilator == 'exponential':
+            self._dilator = lambda x: 2**x
+        elif self.conv_dilator is None:
+            self._dilator = lambda x: 1
+        elif callable(self.conv_dilator):
+            self._dilator = self.conv_dilator
+        else:
+            raise ValueError('The convolution dilator "{}" not recognized'.format(self.conv_dilator))
+
         self.layer_modules = nn.ModuleDict({})
         for k_repeat in range(self.n_repeats):
             for k_block in range(self.n_blocks):
@@ -137,6 +157,8 @@ class SeparationBlock(nn.Module):
                                                     hidden_channels=self.n_hidden_channels,
                                                     out_channels_skip=self.n_skip_channels,
                                                     out_channels_residual=self.n_bottleneck_channels,
+                                                    kernel_size=self.n_separation_conv_kernel_width,
+                                                    dilation=self._dilator(k_block),
                                                     device=device,
                                                     dtype=dtype)
 
@@ -200,6 +222,7 @@ class ConvTasNet(nn.Module):
                  n_bottleneck_channels,
                  n_skip_channels,
                  n_hidden_channels,
+                 n_separation_conv_kernel_width,
                  device=None,
                  dtype=None):
         super(ConvTasNet, self).__init__()
@@ -243,12 +266,14 @@ class ConvTasNet(nn.Module):
         self.n_bottleneck_filters = n_bottleneck_channels
         self.n_skip_channels = n_skip_channels
         self.n_hidden_channels = n_hidden_channels
+        self.n_separation_conv_kernel_width = n_separation_conv_kernel_width
         self.separation_block = SeparationBlock(n_repeats=self.n_repeats,
                                                 n_blocks=self.n_blocks,
                                                 in_channels=self.n_encoder_filters,
                                                 n_bottleneck_channels=self.n_bottleneck_filters,
                                                 n_skip_channels=self.n_skip_channels,
                                                 n_hidden_channels=self.n_hidden_channels,
+                                                n_separation_conv_kernel_width=self.n_separation_conv_kernel_width,
                                                 n_sources=self.n_sources,
                                                 device=device,
                                                 dtype=dtype)
