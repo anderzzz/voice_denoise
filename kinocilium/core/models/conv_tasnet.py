@@ -9,7 +9,7 @@ Written by: Anders Ohrn, March 2022
 import torch
 from torch import nn
 
-from _blocks import PointwiseConv1d, DepthWiseConv1d
+from kinocilium.core.models._blocks import PointwiseConv1d, DepthWiseConv1d
 
 NORM_EPS = 1e-08
 
@@ -74,7 +74,7 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
                                                                            eps=NORM_EPS,
                                                                            device=device,
                                                                            dtype=dtype)
-        assert list(self.separable_conv1d_inner.keys()) == self.INNER_1D_CONV_BLOCK_ORDER
+        assert set(self.separable_conv1d_inner.keys()) == set(self.INNER_1D_CONV_BLOCK_ORDER)
 
         self.skip_connection = PointwiseConv1d(in_channels=self.hidden_channels,
                                                out_channels=self.out_channels_skip,
@@ -288,16 +288,40 @@ class ConvTasNet(nn.Module):
         '''Bla bla
 
         '''
+        batch_size = x.size(0)
+
         x_enc = self.encoder(x)
         mask = self.separation_blocks(x_enc)
-        raise NotImplementedError
-#            x_source = self.decoder(torch.mul(mask, x_enc))
+        masked_output_ = x_enc.unsqueeze(1) * mask
+        masked_output = masked_output_.view(batch_size * self.n_sources, self.n_encoder_filters, -1)
+        x_decode_masked = self.decoder(masked_output)
+        separated_sources = None
+        raise RuntimeError('check dims before going further')
 
         return separated_sources
 
 class ConvTasNetModelBuilder(object):
     def __init__(self):
         self._instance = None
-    def __call__(self):
-        self._instance = ConvTasNet()
+    def __call__(self, in_channels=1, n_sources=2,
+                 n_encoder_filters=512, n_encoder_kernel_width=40,
+                 n_repeats=2, n_blocks=7,
+                 n_bottleneck_channels=128, n_skip_channels=128, n_hidden_channels=256,
+                 n_separation_conv_kernel_with=3,
+                 conv_dilator='exponential', conv_bias=True,
+                 device=None, dtype=None):
+        self._instance = ConvTasNet(in_channels=in_channels,
+                                    n_sources=n_sources,
+                                    n_encoder_filters=n_encoder_filters,
+                                    n_encoder_kernel_width=n_encoder_kernel_width,
+                                    n_repeats=n_repeats,
+                                    n_blocks=n_blocks,
+                                    n_bottleneck_channels=n_bottleneck_channels,
+                                    n_skip_channels=n_skip_channels,
+                                    n_hidden_channels=n_hidden_channels,
+                                    n_separation_conv_kernel_width=n_separation_conv_kernel_with,
+                                    conv_dilator=conv_dilator,
+                                    conv_bias=conv_bias,
+                                    device=device,
+                                    dtype=dtype)
         return self._instance
