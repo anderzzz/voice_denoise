@@ -36,52 +36,43 @@ class SeparableConv1DNormBlockSkipRes(nn.Module):
                  dtype=None):
         super(SeparableConv1DNormBlockSkipRes, self).__init__()
 
-        self.in_channels = in_channels
-        self.hidden_channels = hidden_channels
-        self.out_channels_skip = out_channels_skip
-        self.out_channels_residual = out_channels_residual
-        self.kernel_size = kernel_size
-        self.dilation = dilation
-        self.padding = padding
-        self.bias = bias
-
         self.separable_conv1d_inner = nn.ModuleDict()
         self.separable_conv1d_inner['first non-linearity'] = nn.PReLU(device=device, dtype=dtype)
         self.separable_conv1d_inner['second non-linearity'] = nn.PReLU(device=device, dtype=dtype)
         self.separable_conv1d_inner['pointwise convolution'] = \
-            PointwiseConv1d(in_channels=self.in_channels,
-                            out_channels=self.hidden_channels,
-                            bias=self.bias,
+            PointwiseConv1d(in_channels=in_channels,
+                            out_channels=hidden_channels,
+                            bias=bias,
                             device=device,
                             dtype=dtype)
         self.separable_conv1d_inner['depthwise convolution'] = \
-            DepthWiseConv1d(in_channels=self.hidden_channels,
-                            out_channels=self.hidden_channels,
-                            bias=self.bias,
-                            kernel_size=self.kernel_size,
-                            dilation=self.dilation,
+            DepthWiseConv1d(in_channels=hidden_channels,
+                            out_channels=hidden_channels,
+                            bias=bias,
+                            kernel_size=kernel_size,
+                            dilation=dilation,
                             stride=1,
-                            padding=self.padding,
+                            padding=padding,
                             device=device,
                             dtype=dtype)
         self.separable_conv1d_inner['first normalization'] = nn.GroupNorm(num_groups=1,
-                                                                          num_channels=self.hidden_channels,
+                                                                          num_channels=hidden_channels,
                                                                           eps=NORM_EPS,
                                                                           device=device,
                                                                           dtype=dtype)
         self.separable_conv1d_inner['second normalization'] = nn.GroupNorm(num_groups=1,
-                                                                           num_channels=self.hidden_channels,
+                                                                           num_channels=hidden_channels,
                                                                            eps=NORM_EPS,
                                                                            device=device,
                                                                            dtype=dtype)
         assert set(self.separable_conv1d_inner.keys()) == set(self.INNER_1D_CONV_BLOCK_ORDER)
 
-        self.skip_connection = PointwiseConv1d(in_channels=self.hidden_channels,
-                                               out_channels=self.out_channels_skip,
+        self.skip_connection = PointwiseConv1d(in_channels=hidden_channels,
+                                               out_channels=out_channels_skip,
                                                device=device,
                                                dtype=dtype)
-        self.residual = PointwiseConv1d(in_channels=self.hidden_channels,
-                                        out_channels=self.out_channels_residual,
+        self.residual = PointwiseConv1d(in_channels=hidden_channels,
+                                        out_channels=out_channels_residual,
                                         device=device,
                                         dtype=dtype)
 
@@ -115,49 +106,41 @@ class SeparationBlock(nn.Module):
 
         self.n_repeats = n_repeats
         self.n_blocks = n_blocks
-        self.in_channels = in_channels
-        self.n_bottleneck_channels = n_bottleneck_channels
-        self.n_skip_channels = n_skip_channels
-        self.n_hidden_channels = n_hidden_channels
-        self.n_separation_conv_kernel_width = n_separation_conv_kernel_width
-        self.conv_dilator = conv_dilator
-        self.conv_bias = conv_bias
-        self.n_sources = n_sources
 
         #
         # Initial step in separation module where encoded tensor linearly transformed into hidden channels
         # in a pointwise fashion
         self.layer_init = nn.Sequential(
-            nn.GroupNorm(num_groups=1, num_channels=self.in_channels, eps=NORM_EPS),
-            PointwiseConv1d(in_channels=self.in_channels,
-                            out_channels=self.n_bottleneck_channels,
+            nn.GroupNorm(num_groups=1, num_channels=in_channels, eps=NORM_EPS),
+            PointwiseConv1d(in_channels=in_channels,
+                            out_channels=n_bottleneck_channels,
                             device=device,
                             dtype=dtype)
         )
 
         #
         # The separable convolution blocks in a number of repeats
-        if self.conv_dilator == 'exponential':
+        if conv_dilator == 'exponential':
             self._dilator = lambda x: 2**x
-        elif self.conv_dilator is None:
+        elif conv_dilator is None:
             self._dilator = lambda x: 1
-        elif callable(self.conv_dilator):
-            self._dilator = self.conv_dilator
+        elif callable(conv_dilator):
+            self._dilator = conv_dilator
         else:
             raise ValueError('The convolution dilator "{}" not recognized'.format(self.conv_dilator))
 
         self.layer_modules = nn.ModuleDict({})
-        for k_repeat in range(self.n_repeats):
-            for k_block in range(self.n_blocks):
+        for k_repeat in range(n_repeats):
+            for k_block in range(n_blocks):
                 self.layer_modules[self._make_key(k_repeat, k_block)] = \
-                    SeparableConv1DNormBlockSkipRes(in_channels=self.n_bottleneck_channels,
-                                                    hidden_channels=self.n_hidden_channels,
-                                                    out_channels_skip=self.n_skip_channels,
-                                                    out_channels_residual=self.n_bottleneck_channels,
-                                                    kernel_size=self.n_separation_conv_kernel_width,
+                    SeparableConv1DNormBlockSkipRes(in_channels=n_bottleneck_channels,
+                                                    hidden_channels=n_hidden_channels,
+                                                    out_channels_skip=n_skip_channels,
+                                                    out_channels_residual=n_bottleneck_channels,
+                                                    kernel_size=n_separation_conv_kernel_width,
                                                     dilation=self._dilator(k_block),
                                                     padding=self._dilator(k_block),
-                                                    bias=self.conv_bias,
+                                                    bias=conv_bias,
                                                     device=device,
                                                     dtype=dtype)
 
@@ -165,8 +148,8 @@ class SeparationBlock(nn.Module):
         # Concluding activation, transformation in a pointwise fashion and mapping into range 0.0-1.0
         self.layer_post = nn.Sequential(
             nn.PReLU(),
-            PointwiseConv1d(in_channels=self.n_bottleneck_channels,
-                           out_channels=self.n_sources * self.n_bottleneck_channels,
+            PointwiseConv1d(in_channels=n_bottleneck_channels,
+                           out_channels=n_sources * n_bottleneck_channels,
                            device=device,
                            dtype=dtype),
             nn.Sigmoid()
@@ -235,11 +218,6 @@ class ConvTasNet(nn.Module):
         else:
             self.in_channels = in_channels
 
-        if not n_sources > 1:
-            raise ValueError('Number of separable sources has to exceed 1')
-        else:
-            self.n_sources = n_sources
-
         self.n_encoder_filters = n_encoder_filters
         self.n_encoder_window = n_encoder_kernel_width
         stride = int(self.n_encoder_window * p_encoder_window_overlap / 100)
@@ -247,7 +225,6 @@ class ConvTasNet(nn.Module):
             padding = (self.n_encoder_window - 1) // 2
         else:
             raise ValueError('The encoder window length must be odd, so not {}'.format(self.n_encoder_window))
-
 
         self.encoder = nn.Conv1d(in_channels=self.in_channels,
                                  out_channels=self.n_encoder_filters,
@@ -266,6 +243,10 @@ class ConvTasNet(nn.Module):
                                           device=device,
                                           dtype=dtype)
 
+        if not n_sources > 1:
+            raise ValueError('Number of separable sources has to exceed 1')
+        else:
+            self.n_sources = n_sources
         self.n_blocks = n_blocks
         self.n_repeats = n_repeats
         self.n_bottleneck_filters = n_bottleneck_channels
@@ -294,7 +275,7 @@ class ConvTasNet(nn.Module):
         batch_size = x.size(0)
 
         x_enc = self.encoder(x)
-        mask = self.separation_blocks(x_enc)
+        mask = self.separation_block(x_enc)
         masked_output_ = x_enc.unsqueeze(1) * mask
         masked_output = masked_output_.view(batch_size * self.n_sources, self.n_encoder_filters, -1)
         x_decode_masked = self.decoder(masked_output)
