@@ -19,8 +19,6 @@ def test_simple_init():
 
     convtas_net.eval()
     for dd in plain_audio_loader:
-        print (dd['waveform'])
-        print (dd['waveform'].shape)
         convtas_net(dd['waveform'])
 
 

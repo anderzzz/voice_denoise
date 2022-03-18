@@ -220,6 +220,7 @@ class ConvTasNet(nn.Module):
 
         self.n_encoder_filters = n_encoder_filters
         self.n_encoder_window = n_encoder_kernel_width
+        self.p_encoder_window_overlap = p_encoder_window_overlap
         stride = int(self.n_encoder_window * p_encoder_window_overlap / 100)
         if self.n_encoder_window % 2 == 1:
             padding = (self.n_encoder_window - 1) // 2
@@ -291,7 +292,7 @@ class ConvTasNetModelBuilder(object):
                  n_encoder_filters=512, n_encoder_kernel_width=39, p_encoder_window_overlap=50.0,
                  n_repeats=2, n_blocks=7,
                  n_bottleneck_channels=128, n_skip_channels=128, n_hidden_channels=256,
-                 n_separation_conv_kernel_with=3,
+                 n_separation_conv_kernel_width=3,
                  conv_dilator='exponential', conv_bias=True,
                  device=None, dtype=None):
         self._instance = ConvTasNet(in_channels=in_channels,
@@ -304,9 +305,29 @@ class ConvTasNetModelBuilder(object):
                                     n_bottleneck_channels=n_bottleneck_channels,
                                     n_skip_channels=n_skip_channels,
                                     n_hidden_channels=n_hidden_channels,
-                                    n_separation_conv_kernel_width=n_separation_conv_kernel_with,
+                                    n_separation_conv_kernel_width=n_separation_conv_kernel_width,
                                     conv_dilator=conv_dilator,
                                     conv_bias=conv_bias,
                                     device=device,
                                     dtype=dtype)
+
+        if not 'init_kwargs' in self._instance.__dir__():
+            self._instance.init_kwargs = {
+                                          'in_channels' : in_channels,
+                                          'n_sources' : n_sources,
+                                          'n_encoder_filters' : n_encoder_filters,
+                                          'n_encoder_kernel_width' : n_encoder_kernel_width,
+                                          'p_encoder_window_overlap' : p_encoder_window_overlap,
+                                          'n_repeats' : n_repeats,
+                                          'n_blocks' : n_blocks,
+                                          'n_bottleneck_channels' : n_bottleneck_channels,
+                                          'n_skip_channels' : n_skip_channels,
+                                          'n_hidden_channels' : n_hidden_channels,
+                                          'n_separation_conv_kernel_width' : n_separation_conv_kernel_width,
+                                          'conv_dilator' : conv_dilator,
+                                          'conv_bias' : conv_bias,
+                                          'device' : device,
+                                          'dtype' : dtype
+                                          }
+
         return self._instance

@@ -105,5 +105,13 @@ class AudioMSSNSDDataBuilder(object):
                                                return_clean_counterpart=return_clean_counterpart,
                                                filter_on_snr=filter_on_snr,
                                                read_metadata=read_metadata)
+        if not 'init_kwargs' in self._instance.__dir__():
+            self._instance.init_kwargs = {'path_to_noisyspeech' : path_to_noisyspeech,
+                                          'path_to_cleanspeech' : path_to_cleanspeech,
+                                          'path_to_noise' : path_to_noise,
+                                          'return_clean_counterpart' : return_clean_counterpart,
+                                          'filter_on_snr' : filter_on_snr,
+                                          'read_metadata' : read_metadata
+                                          }
 
         return self._instance

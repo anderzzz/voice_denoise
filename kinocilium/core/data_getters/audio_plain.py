@@ -32,5 +32,9 @@ class AudioPlainWAVDataBuilder(object):
         self._instance = AudioPlainWAVData(path_to_folder=path_to_folder,
                                            file_pattern=file_pattern,
                                            read_metadata=read_metadata)
+        if not 'init_kwargs' in self._instance.__dir__():
+            self._instance.init_kwargs = {'path_to_folder' : path_to_folder,
+                                          'file_pattern' : file_pattern,
+                                          'read_metadata' : read_metadata}
 
         return self._instance
