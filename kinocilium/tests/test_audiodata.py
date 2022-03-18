@@ -5,17 +5,22 @@
 DATA_SUBFOLDER = 'data1'
 
 # Constants: check values to test against
-CHECK_KEYS = {'waveform', 'sample_rate', 'metadata'}
+CHECK_KEYS_0 = {'waveform', 'sample_rate', 'metadata'}
+CHECK_KEYS_1 = {'waveform', 'sample_rate'}
 
 import os
 abs_data_path = os.path.join(os.path.join(os.path.dirname(__file__), 'data'), DATA_SUBFOLDER)
 
 from kinocilium.core.data_getters import factory
 
-def test_simple_read():
+def test_simple_reads():
+    data = factory.create('plain wav', path_to_folder=abs_data_path, read_metadata=True)
+    for dd in data:
+        assert set(dd.keys()) == CHECK_KEYS_0
+
     data = factory.create('plain wav', path_to_folder=abs_data_path, read_metadata=False)
     for dd in data:
-        assert set(dd.keys()) == CHECK_KEYS
+        assert set(dd.keys()) == CHECK_KEYS_1
 
 if __name__ == '__main__':
-    test_simple_read()
+    test_simple_reads()

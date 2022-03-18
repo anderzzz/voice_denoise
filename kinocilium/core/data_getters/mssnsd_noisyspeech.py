@@ -104,6 +104,6 @@ class AudioMSSNSDDataBuilder(object):
                                                path_to_noise=path_to_noise,
                                                return_clean_counterpart=return_clean_counterpart,
                                                filter_on_snr=filter_on_snr,
-                                               read_metadata=True)
+                                               read_metadata=read_metadata)
 
         return self._instance

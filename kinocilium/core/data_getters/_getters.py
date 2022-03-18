@@ -32,15 +32,18 @@ class _AudioUnlabelledDataset(Dataset):
             raw_data (dict)
 
         '''
+        ret = {}
+
         path = self.file_path_getter(idx)
         if self.read_metadata:
             metadata = torchaudio.info(path)
-        else:
-            metadata = None
+            ret['metadata'] = metadata
 
         waveform, sample_rate = torchaudio.load(path)
+        ret['waveform'] = waveform
+        ret['sample_rate'] = sample_rate
 
-        return {'waveform' : waveform, 'sample_rate' : sample_rate, 'metadata' : metadata}
+        return ret
 
 
 class _AudioLabelledDataset(Dataset):
@@ -80,16 +83,16 @@ class _AudioPairedDataset(Dataset):
         if self.read_metadata:
             metadata = torchaudio.info(path_file)
             metadata_counterpart = torchaudio.info(path_file_counterpart)
-        else:
-            metadata = None
-            metadata_counterpart = None
 
         waveform, sample_rate = torchaudio.load(path_file)
         waveform_counterpart, sample_rate_counterpart = torchaudio.load(path_file_counterpart)
 
-        return {'waveform_{}'.format(self.keys_filetype[0]) : waveform,
-                'sample_rate_{}'.format(self.keys_filetype[0]) : sample_rate,
-                'metadata_{}'.format(self.keys_filetype[0]) : metadata,
-                'waveform_{}'.format(self.keys_filetype[1]) : waveform_counterpart,
-                'sample_rate_{}'.format(self.keys_filetype[1]) : sample_rate_counterpart,
-                'metadata_{}'.format(self.keys_filetype[1]) : metadata_counterpart}
+        ret = {'waveform_{}'.format(self.keys_filetype[0]) : waveform,
+               'sample_rate_{}'.format(self.keys_filetype[0]) : sample_rate,
+               'waveform_{}'.format(self.keys_filetype[1]) : waveform_counterpart,
+               'sample_rate_{}'.format(self.keys_filetype[1]) : sample_rate_counterpart}
+        if self.read_metadata:
+            ret['metadata_{}'.format(self.keys_filetype[0])] = metadata
+            ret['metadata_{}'.format(self.keys_filetype[1])] = metadata_counterpart
+
+        return ret

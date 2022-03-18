@@ -7,8 +7,8 @@ DATA_SUBFOLDER = 'data2'
 # Constants: check values to test against
 CHECK_KEYS_1 = {'waveform_noisy_speech', 'sample_rate_noisy_speech', 'metadata_noisy_speech',
                 'waveform_clean_speech', 'sample_rate_clean_speech', 'metadata_clean_speech'}
-CHECK_KEYS_2 = {'waveform_noisy_speech', 'sample_rate_noisy_speech', 'metadata_noisy_speech',
-                'waveform_noise', 'sample_rate_noise', 'metadata_noise'}
+CHECK_KEYS_2 = {'waveform_noisy_speech', 'sample_rate_noisy_speech',
+                'waveform_noise', 'sample_rate_noise'}
 N_FILES_SNR40 = 1
 
 import os
@@ -21,7 +21,7 @@ def test_basic_retrieval():
                           path_to_noisyspeech=abs_data_path,
                           path_to_cleanspeech=abs_data_path,
                           path_to_noise=abs_data_path,
-                          read_metadata=False)
+                          read_metadata=True)
     for dd in data:
         assert set(dd.keys()) == CHECK_KEYS_1
 
