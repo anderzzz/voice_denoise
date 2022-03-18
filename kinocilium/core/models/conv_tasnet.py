@@ -217,6 +217,7 @@ class ConvTasNet(nn.Module):
                  n_sources,
                  n_encoder_filters,
                  n_encoder_kernel_width,
+                 p_encoder_window_overlap,
                  n_repeats,
                  n_blocks,
                  n_bottleneck_channels,
@@ -241,16 +242,18 @@ class ConvTasNet(nn.Module):
 
         self.n_encoder_filters = n_encoder_filters
         self.n_encoder_window = n_encoder_kernel_width
+        stride = int(self.n_encoder_window * p_encoder_window_overlap / 100)
         if self.n_encoder_window % 2 == 1:
             padding = (self.n_encoder_window - 1) // 2
         else:
             raise ValueError('The encoder window length must be odd, so not {}'.format(self.n_encoder_window))
 
+
         self.encoder = nn.Conv1d(in_channels=self.in_channels,
                                  out_channels=self.n_encoder_filters,
                                  kernel_size=self.n_encoder_window,
                                  bias=False,
-                                 stride=1,
+                                 stride=stride,
                                  padding=padding,
                                  padding_mode='zeros',
                                  device=device,
@@ -259,7 +262,7 @@ class ConvTasNet(nn.Module):
                                           out_channels=self.in_channels,
                                           kernel_size=self.n_encoder_window,
                                           bias=False,
-                                          stride=1,
+                                          stride=stride,
                                           device=device,
                                           dtype=dtype)
 
@@ -304,7 +307,7 @@ class ConvTasNetModelBuilder(object):
     def __init__(self):
         self._instance = None
     def __call__(self, in_channels=1, n_sources=2,
-                 n_encoder_filters=512, n_encoder_kernel_width=39,
+                 n_encoder_filters=512, n_encoder_kernel_width=39, p_encoder_window_overlap=50.0,
                  n_repeats=2, n_blocks=7,
                  n_bottleneck_channels=128, n_skip_channels=128, n_hidden_channels=256,
                  n_separation_conv_kernel_with=3,
@@ -314,6 +317,7 @@ class ConvTasNetModelBuilder(object):
                                     n_sources=n_sources,
                                     n_encoder_filters=n_encoder_filters,
                                     n_encoder_kernel_width=n_encoder_kernel_width,
+                                    p_encoder_window_overlap=p_encoder_window_overlap,
                                     n_repeats=n_repeats,
                                     n_blocks=n_blocks,
                                     n_bottleneck_channels=n_bottleneck_channels,
