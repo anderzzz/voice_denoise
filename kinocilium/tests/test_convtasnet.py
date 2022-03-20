@@ -14,7 +14,7 @@ from kinocilium.core.data_getters import factory as factory_data
 
 def test_simple_init():
     convtas_net = factory_model.create('conv_tasnet')
-    plain_audio = factory_data.create('plain wav', path_to_folder=abs_data_path, read_metadata=False)
+    plain_audio = factory_data.create('plain wav', path_to_folder=abs_data_path, read_metadata=True)
     plain_audio_loader = DataLoader(plain_audio, batch_size=1, shuffle=False)
 
     convtas_net.eval()

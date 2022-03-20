@@ -4,6 +4,20 @@
 import torchaudio
 from torch.utils.data import Dataset
 
+def _torchaudio_meta_2_dict(obj):
+    '''Given an AudioMetaData object from torchaudio, it is converted into dictionary
+
+    Purpose of this function is to ensure that DataLoader can collate metadata. It requires some hard-coding of what
+    the attribute names are. This can be inspected in the documentation at
+    https://pytorch.org/audio/stable/_modules/torchaudio/backend/common.html#AudioMetaData
+
+    '''
+    TORCHAUDIO_METADATA_KEYS = {'sample_rate', 'num_frames', 'num_channels', 'bits_per_sample', 'encoding'}
+    ret = {}
+    for obj_attr in TORCHAUDIO_METADATA_KEYS:
+        ret[obj_attr] = getattr(obj, obj_attr)
+    return ret
+
 class _AudioUnlabelledDataset(Dataset):
     '''Parent class for unlabelled audio data of the PyTorch Dataset format
 
@@ -36,7 +50,7 @@ class _AudioUnlabelledDataset(Dataset):
 
         path = self.file_path_getter(idx)
         if self.read_metadata:
-            metadata = torchaudio.info(path)
+            metadata = _torchaudio_meta_2_dict(torchaudio.info(path))
             ret['metadata'] = metadata
 
         waveform, sample_rate = torchaudio.load(path)
@@ -81,8 +95,8 @@ class _AudioPairedDataset(Dataset):
         '''
         path_file, path_file_counterpart = self.file_path_getter(idx)
         if self.read_metadata:
-            metadata = torchaudio.info(path_file)
-            metadata_counterpart = torchaudio.info(path_file_counterpart)
+            metadata = _torchaudio_meta_2_dict(torchaudio.info(path_file))
+            metadata_counterpart = _torchaudio_meta_2_dict(torchaudio.info(path_file_counterpart))
 
         waveform, sample_rate = torchaudio.load(path_file)
         waveform_counterpart, sample_rate_counterpart = torchaudio.load(path_file_counterpart)

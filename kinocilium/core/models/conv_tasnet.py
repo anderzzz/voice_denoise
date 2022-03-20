@@ -129,7 +129,7 @@ class SeparationBlock(nn.Module):
         else:
             raise ValueError('The convolution dilator "{}" not recognized'.format(self.conv_dilator))
 
-        self.layer_modules = nn.ModuleDict({})
+        self.layer_modules = nn.ModuleDict()
         for k_repeat in range(n_repeats):
             for k_block in range(n_blocks):
                 self.layer_modules[self._make_key(k_repeat, k_block)] = \
