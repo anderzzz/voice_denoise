@@ -9,10 +9,13 @@ class AudioPlainWAVData(_AudioUnlabelledDataset):
         path_to_folder (str): path to folder with audio files
         file_pattern (str): Unix style file selection for which files in folder to include
         read_metadata (bool): if metadata for the files should be read and returned; if not `None` returned
+        slice_size (int): if not `None` it describes the number of frames that each slice of data should contain,
+            otherwise all frames of each data point are returned
 
     '''
     def __init__(self, path_to_folder, file_pattern='*.wav',
-                 read_metadata=True):
+                 read_metadata=True,
+                 slice_size=None):
         p = Path(path_to_folder)
         if not p.is_dir():
             raise ValueError('File folder {} not found'.format(path_to_folder))
@@ -22,19 +25,25 @@ class AudioPlainWAVData(_AudioUnlabelledDataset):
 
         super(AudioPlainWAVData, self).__init__(file_path_getter=lambda idx: file_paths[idx],
                                                 len_file_paths=n_file_paths,
-                                                read_metadata=read_metadata)
+                                                read_metadata=read_metadata,
+                                                slice_size=slice_size)
 
 class AudioPlainWAVDataBuilder(object):
     def __init__(self):
         self._instance = None
 
-    def __call__(self, path_to_folder, file_pattern='*.wav', read_metadata=True):
+    def __call__(self, path_to_folder,
+                       file_pattern='*.wav',
+                       read_metadata=True,
+                       slice_size=None):
         self._instance = AudioPlainWAVData(path_to_folder=path_to_folder,
                                            file_pattern=file_pattern,
-                                           read_metadata=read_metadata)
+                                           read_metadata=read_metadata,
+                                           slice_size=slice_size)
         if not 'init_kwargs' in self._instance.__dir__():
             self._instance.init_kwargs = {'path_to_folder' : path_to_folder,
                                           'file_pattern' : file_pattern,
-                                          'read_metadata' : read_metadata}
+                                          'read_metadata' : read_metadata,
+                                          'slice_size' : slice_size}
 
         return self._instance
