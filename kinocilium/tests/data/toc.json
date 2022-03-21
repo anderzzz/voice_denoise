@@ -2,5 +2,9 @@
   "data1": {
     "isFolder": true,
     "description": "Folder with two basic WAV files"
+  },
+  "data2" : {
+    "isFolder": true,
+    "description": "Folder with two clean speech WAV files, two noise files, and the mixing of the clean speech with the noise"
   }
 }
