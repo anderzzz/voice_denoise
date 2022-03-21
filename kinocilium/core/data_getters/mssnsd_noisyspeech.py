@@ -33,7 +33,8 @@ class MSSNSDNoisySpeechData(_AudioPairedDataset):
 
     def __init__(self, path_to_noisyspeech, path_to_cleanspeech, path_to_noise,
                  return_clean_counterpart=True, filter_on_snr='[0-9]+\.[0-9]+',
-                 read_metadata=True):
+                 read_metadata=True,
+                 slice_size=None):
         self.p_noisyspeech = Path(path_to_noisyspeech)
         if not self.p_noisyspeech.is_dir():
             raise ValueError('File folder {} not found'.format(self.path_to_noisyspeech))
@@ -60,7 +61,8 @@ class MSSNSDNoisySpeechData(_AudioPairedDataset):
         super(MSSNSDNoisySpeechData, self).__init__(file_paths_getter=self._p_getter,
                                                     len_files_path=n_file_paths,
                                                     keys_filetype=ret_keys,
-                                                    read_metadata=read_metadata)
+                                                    read_metadata=read_metadata,
+                                                    slice_size=slice_size)
 
     def _p_getter(self, idx):
         '''Method to return the file paths for the paired MS-SNSD audio data
@@ -98,20 +100,23 @@ class AudioMSSNSDDataBuilder(object):
 
     def __call__(self, path_to_noisyspeech, path_to_cleanspeech, path_to_noise,
                  return_clean_counterpart=True, filter_on_snr='[0-9]+\.[0-9]+',
-                 read_metadata=True):
+                 read_metadata=True,
+                 slice_size=None):
         self._instance = MSSNSDNoisySpeechData(path_to_noisyspeech=path_to_noisyspeech,
                                                path_to_cleanspeech=path_to_cleanspeech,
                                                path_to_noise=path_to_noise,
                                                return_clean_counterpart=return_clean_counterpart,
                                                filter_on_snr=filter_on_snr,
-                                               read_metadata=read_metadata)
+                                               read_metadata=read_metadata,
+                                               slice_size=slice_size)
         if not 'init_kwargs' in self._instance.__dir__():
             self._instance.init_kwargs = {'path_to_noisyspeech' : path_to_noisyspeech,
                                           'path_to_cleanspeech' : path_to_cleanspeech,
                                           'path_to_noise' : path_to_noise,
                                           'return_clean_counterpart' : return_clean_counterpart,
                                           'filter_on_snr' : filter_on_snr,
-                                          'read_metadata' : read_metadata
+                                          'read_metadata' : read_metadata,
+                                          'slice_size' : slice_size
                                           }
 
         return self._instance

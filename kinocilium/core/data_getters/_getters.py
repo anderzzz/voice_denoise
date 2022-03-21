@@ -55,7 +55,7 @@ class _UnChunkedGetter(object):
         waveform, sample_rate = torchaudio.load(path)
         ret['waveform'] = waveform
         ret['sample_rate'] = sample_rate
-        
+
         if self.read_metadata:
             metadata = _torchaudio_meta_2_dict(torchaudio.info(path))
             ret['metadata'] = metadata
@@ -162,34 +162,45 @@ class _AudioPairedDataset(Dataset):
         read_metadata (bool): if metadata for the files should be read and returned; if not `None` returned
 
     '''
-    def __init__(self, file_paths_getter, len_files_path, keys_filetype, read_metadata):
+    def __init__(self, file_paths_getter, len_files_path, keys_filetype, read_metadata, slice_size):
         super(_AudioPairedDataset, self).__init__()
-        self.file_path_getter = file_paths_getter
-        self.len_files_path = len_files_path
         self.keys_filetype = keys_filetype
-        self.read_metadata = read_metadata
+
+        if slice_size is None:
+            self._getter_0 = _UnChunkedGetter(file_path_getter=lambda idx: file_paths_getter(idx)[0],
+                                              len_file_paths=len_files_path,
+                                              read_metadata=read_metadata)
+            self._getter_1 = _UnChunkedGetter(file_path_getter=lambda idx: file_paths_getter(idx)[1],
+                                              len_file_paths=len_files_path,
+                                              read_metadata=read_metadata)
+
+        elif isinstance(slice_size, int):
+            self._getter_0 = _ChunkedGetter(file_path_getter=lambda idx: file_paths_getter(idx)[0],
+                                            len_file_paths=len_files_path,
+                                            read_metadata=read_metadata,
+                                            slice_size=slice_size)
+            self._getter_1 = _ChunkedGetter(file_path_getter=lambda idx: file_paths_getter(idx)[1],
+                                            len_file_paths=len_files_path,
+                                            read_metadata=read_metadata,
+                                            slice_size=slice_size)
+
+        else:
+            raise ValueError('Non-allowed type for `slice_size`. Must be `int` or `None`')
+
+        if self._getter_0.__len__() != self._getter_1.__len__():
+            raise ValueError('File path getter returns different number of files. ' + \
+                             'The `file_path_getter` is likely associating files of different lengths together')
 
     def __len__(self):
-        return self.len_files_path
+        return self._getter_0.__len__()
 
     def __getitem__(self, idx):
-        '''Bla bla
+        ret_0 = self._getter_0.__getitem__(idx)
+        ret_1 = self._getter_1.__getitem__(idx)
 
-        '''
-        path_file, path_file_counterpart = self.file_path_getter(idx)
-        if self.read_metadata:
-            metadata = _torchaudio_meta_2_dict(torchaudio.info(path_file))
-            metadata_counterpart = _torchaudio_meta_2_dict(torchaudio.info(path_file_counterpart))
-
-        waveform, sample_rate = torchaudio.load(path_file)
-        waveform_counterpart, sample_rate_counterpart = torchaudio.load(path_file_counterpart)
-
-        ret = {'waveform_{}'.format(self.keys_filetype[0]) : waveform,
-               'sample_rate_{}'.format(self.keys_filetype[0]) : sample_rate,
-               'waveform_{}'.format(self.keys_filetype[1]) : waveform_counterpart,
-               'sample_rate_{}'.format(self.keys_filetype[1]) : sample_rate_counterpart}
-        if self.read_metadata:
-            ret['metadata_{}'.format(self.keys_filetype[0])] = metadata
-            ret['metadata_{}'.format(self.keys_filetype[1])] = metadata_counterpart
+        ret = {}
+        for key in ret_0.keys():
+            ret['{}_{}'.format(key, self.keys_filetype[0])] = ret_0[key]
+            ret['{}_{}'.format(key, self.keys_filetype[1])] = ret_1[key]
 
         return ret
