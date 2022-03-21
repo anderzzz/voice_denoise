@@ -149,7 +149,7 @@ class SeparationBlock(nn.Module):
         self.layer_post = nn.Sequential(
             nn.PReLU(),
             PointwiseConv1d(in_channels=n_bottleneck_channels,
-                           out_channels=n_sources * n_bottleneck_channels,
+                           out_channels=n_sources * in_channels,
                            device=device,
                            dtype=dtype),
             nn.Sigmoid()
@@ -277,13 +277,14 @@ class ConvTasNet(nn.Module):
 
         x_enc = self.encoder(x)
         mask = self.separation_block(x_enc)
-        masked_output_ = x_enc.unsqueeze(1) * mask
-        masked_output = masked_output_.view(batch_size * self.n_sources, self.n_encoder_filters, -1)
+        mask = mask.view(batch_size, self.n_sources, self.n_encoder_filters, -1)
+        masked_output = x_enc.unsqueeze(1) * mask
+        masked_output = masked_output.view(batch_size * self.n_sources, self.n_encoder_filters, -1)
         x_decode_masked = self.decoder(masked_output)
-        separated_sources = None
-        raise RuntimeError('check dims before going further')
+        x_decode_masked = x_decode_masked.view(batch_size, self.n_sources, -1)
+        # TODO: tweak the final slicing of x_decode_masked so it has the same number of data as input. Something with stride and padding
 
-        return separated_sources
+        return x_decode_masked
 
 class ConvTasNetModelBuilder(object):
     def __init__(self):
