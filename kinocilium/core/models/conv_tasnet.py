@@ -221,7 +221,7 @@ class ConvTasNet(nn.Module):
         self.n_encoder_filters = n_encoder_filters
         self.n_encoder_window = n_encoder_kernel_width
         self.p_encoder_window_overlap = p_encoder_window_overlap
-        stride = int(self.n_encoder_window * p_encoder_window_overlap / 100)
+        self.stride = int(self.n_encoder_window * p_encoder_window_overlap / 100)
         if self.n_encoder_window % 2 == 1:
             padding = (self.n_encoder_window - 1) // 2
         else:
@@ -231,7 +231,7 @@ class ConvTasNet(nn.Module):
                                  out_channels=self.n_encoder_filters,
                                  kernel_size=self.n_encoder_window,
                                  bias=False,
-                                 stride=stride,
+                                 stride=self.stride,
                                  padding=padding,
                                  padding_mode='zeros',
                                  device=device,
@@ -240,7 +240,7 @@ class ConvTasNet(nn.Module):
                                           out_channels=self.in_channels,
                                           kernel_size=self.n_encoder_window,
                                           bias=False,
-                                          stride=stride,
+                                          stride=self.stride,
                                           device=device,
                                           dtype=dtype)
 
@@ -274,15 +274,25 @@ class ConvTasNet(nn.Module):
 
         '''
         batch_size = x.size(0)
+        x_num_frames = x.size(-1)
 
         x_enc = self.encoder(x)
+        if x_enc.size(-1) != 1 + x_num_frames // self.stride:
+            raise RuntimeError('Encoder does not return expected number of frames. Weird!')
+
         mask = self.separation_block(x_enc)
         mask = mask.view(batch_size, self.n_sources, self.n_encoder_filters, -1)
         masked_output = x_enc.unsqueeze(1) * mask
         masked_output = masked_output.view(batch_size * self.n_sources, self.n_encoder_filters, -1)
+
         x_decode_masked = self.decoder(masked_output)
+        if x_decode_masked.size(-1) != (x_enc.size(-1) - 1) * self.stride + (self.n_encoder_window - 1) + 1:
+            raise RuntimeError('Decoder does not return expected number of frames. Weird!')
+
         x_decode_masked = x_decode_masked.view(batch_size, self.n_sources, -1)
-        # TODO: tweak the final slicing of x_decode_masked so it has the same number of data as input. Something with stride and padding
+        x_decode_masked = x_decode_masked.narrow(-1, self.stride, x_num_frames)
+        if tuple(x_decode_masked.shape) != (batch_size, self.n_sources, x_num_frames):
+            raise RuntimeError('Masked decoded data not of expected shape. Weird!')
 
         return x_decode_masked
 
