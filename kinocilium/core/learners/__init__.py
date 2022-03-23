@@ -18,4 +18,4 @@ class AudioLearnerFactory(_Factory):
         super(AudioLearnerFactory, self).__init__()
 
 factory = AudioLearnerFactory()
-#factory.register_builder('FOOBAR', None)
+factory.register_builder('paired audio recreation', None)

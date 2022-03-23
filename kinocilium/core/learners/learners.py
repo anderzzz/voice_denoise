@@ -16,9 +16,6 @@ class LearnerPairedAudio(_Learner):
                        random_seed=None,
                        f_out=sys.stdout,
                        save_tmp_name='model_in_training',
-                       dataset_type='plain wav',
-                       dataset_kwargs={},
-                       loader_batch_size=16,
                        num_workers=0,
                        deterministic=True):
 
@@ -26,15 +23,8 @@ class LearnerPairedAudio(_Learner):
                                                  random_seed=random_seed,
                                                  f_out=f_out,
                                                  save_tmp_name=save_tmp_name,
-                                                 dataset_type=dataset_type,
-                                                 dataset_kwargs=dataset_kwargs,
-                                                 loader_batch_size=loader_batch_size,
                                                  num_workers=num_workers,
                                                  deterministic=deterministic)
-        self.model = None
-
-        def inject_model(self, nn_module):
-            self.model = nn_module
 
         def load_model(self, path):
             pass
@@ -49,3 +39,17 @@ class LearnerPairedAudio(_Learner):
                 n_epochs (int): Number of training epochs
 
             '''
+            pass
+
+        def validate(self):
+            pass
+
+class LearnerPairedAudioBuilder(object):
+    def __init__(self):
+        self._instance = None
+    def __call__(self):
+        self._instance = LearnerPairedAudio()
+        if not 'init_kwargs' in self._instance.__dir__():
+            self._instance.init_kwargs = {}
+
+        return self._instance
