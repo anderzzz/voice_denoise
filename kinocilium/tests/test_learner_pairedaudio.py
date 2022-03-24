@@ -30,4 +30,4 @@ def test_simple_init_and_train():
         'validate' : DataLoader(plain_audio, batch_size=BATCH_SIZE, shuffle=False),
     }
 
-    learner_paired.train()
+    learner_paired.train(model=convtas_net, n_epochs=XXX).with_data_().with_reporter_()

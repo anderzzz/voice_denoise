@@ -54,19 +54,26 @@ class _Learner(LearnerInterface):
     Args:
 
     '''
-    def __init__(self, run_label='Learner Run Label',
-                       random_seed=None,
-                       f_out=sys.stdout,
-                       save_tmp_name='model_in_training',
-                       num_workers=0,
-                       deterministic=True):
+    def __init__(self,
+                 model,
+                 run_label='Learner Run Label',
+                 random_seed=None,
+                 f_out=sys.stdout,
+                 save_tmp_name='model_in_training',
+                 num_workers=0,
+                 deterministic=True,
+                 optimizer=None,
+                 lr_scheduler=None):
 
+        self.model = model
         self.run_label = run_label
         self.random_seed = random_seed
         self.f_out = f_out
         self.save_tmp_name = save_tmp_name
         self.num_workers = num_workers
         self.deterministic = deterministic
+        self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -87,24 +94,13 @@ class _Learner(LearnerInterface):
         self.model = None
         self.progress_reporter = None
 
-    def set_sgd_optim(self, parameters, lr=0.01, momentum=0.9, weight_decay=0.0,
-                      scheduler_step_size=15, scheduler_gamma=0.1):
-        '''Override the `optimizer` and `lr_scheduler` attributes with an SGD optimizer and an exponential decay
-        learning rate.
-        This is a convenience method for a common special case of the optimization. A child class can define other
-        PyTorch optimizers and learning-rate decay methods.
-        Args:
-            parameters: The parameters of the model to optimize
-            lr (float, optional): Initial learning rate. Defaults to 0.01
-            momentum (float, optional): Momentum of SGD. Defaults to 0.9
-            weight_decay (float, optional): L2 regularization of weights. Defaults to 0.0 (no weight regularization)
-            scheduler_step_size (int, optional): Steps between learning-rate update. Defaults to 15
-            scheduler_gamma (float, optional): Factor to reduce learning-rate with. Defaults to 0.1.
-        '''
-        self.optimizer = optim.SGD(parameters, lr=lr, momentum=momentum, weight_decay=weight_decay)
-        self.lr_scheduler = optim.lr_scheduler.StepLR(self.optimizer,
-                                                      step_size=scheduler_step_size,
-                                                      gamma=scheduler_gamma)
+    def train(self, n_epochs):
+        self.model.train()
+        for k_epoch in range(n_epochs):
+            for data_inputs in self.dataloaders['train']:
+                self.model(data_inputs)
+
+
 
 def progress_bar(current, total, barlength=20):
     '''Print progress of training of a batch. Helpful in PyCharm'''
