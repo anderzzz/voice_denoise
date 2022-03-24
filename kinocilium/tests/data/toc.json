@@ -6,5 +6,9 @@
   "data2" : {
     "isFolder": true,
     "description": "Folder with two clean speech WAV files, two noise files, and the mixing of the clean speech with the noise"
+  },
+  "data3" : {
+    "isFolder": true,
+    "description": "Folder with tiny extract from the AudioMINST database, so spoken digits"
   }
 }

@@ -147,10 +147,25 @@ class _AudioLabelledDataset(Dataset):
     '''Parent class for labelled audio data of the PyTorch Dataset format
 
     '''
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self, file_path_getter, label_getter, len_file_paths, read_metadata, slice_size):
         super(_AudioLabelledDataset, self).__init__()
 
+        self.label_getter = label_getter
+        self.read_metadata = read_metadata
+        if slice_size is None:
+            self._getter = _UnChunkedGetter(file_path_getter, len_file_paths, read_metadata)
+
+        elif isinstance(slice_size, int):
+            self._getter = _ChunkedGetter(file_path_getter, len_file_paths, read_metadata, slice_size)
+
+        else:
+            raise ValueError('Non-allowed type for `slice_size`. Must be `int` or `None`')
+
+    def __len__(self):
+        return self._getter.__len__()
+
+    def __getitem__(self, idx):
+        return self.label_getter(idx), self._getter.__getitem__(idx)
 
 class _AudioPairedDataset(Dataset):
     '''Parent class for paired audio data of the Pytorch Dataset format
