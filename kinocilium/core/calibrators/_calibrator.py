@@ -48,71 +48,6 @@ class CalibratorInterface(metaclass=abc.ABCMeta):
         '''Save model state to file'''
         raise NotImplementedError
 
-class _Calibrator(CalibratorInterface):
-    '''Parent class
-
-    Args:
-
-    '''
-    def __init__(self,
-                 criterion,
-                 optimizer_label,
-                 optimizer_kwargs,
-                 lr_scheduler=None,
-                 device=None,
-                 run_label='Calibrator Run Label',
-                 random_seed=None,
-                 f_out=sys.stdout,
-                 save_tmp_name='model_in_training',
-                 num_workers=0,
-                 deterministic=True):
-
-        self.criterion = criterion
-        self.optimizer_label = optimizer_label
-        self.optimizer_kwargs = optimizer_kwargs
-        self.lr_scheduler = lr_scheduler
-        self.run_label = run_label
-        self.random_seed = random_seed
-        self.f_out = f_out
-        self.save_tmp_name = save_tmp_name
-        self.num_workers = num_workers
-        self.deterministic = deterministic
-
-        self.optimizer = None
-
-        if device is None:
-            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = device
-
-        self.rng = default_rng(self.inp_random_seed)
-        torch.manual_seed(self.rng.integers(2**63))
-        if self.deterministic:
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
-        else:
-            torch.backends.cudnn.deterministic = False
-            torch.backends.cudnn.benchmark = True
-
-    def connect_calibration_params(self, parameters):
-        '''Bla bla
-
-        '''
-        self._optimizer_method = getattr(optim, self.optimizer_label)
-        self.optimizer = self._optimizer_method(parameters=parameters, **self.optimizer_kwargs)
-
-#    def train(self, n_epochs):
-#        self.model.train()
-#        for k_epoch in range(n_epochs):
-#            for data_inputs in self.dataloaders['train']:
-#                self.model(data_inputs)
-
-def _calibrate_params_(loss, optimizer, lr_scheduler=None):
-    loss.backward()
-    optimizer.step()
-    if not lr_scheduler is None:
-        lr_scheduler.step()
-
 def _generate_optimizer(label, parameters, kwargs={}):
     try:
         opt_method = getattr(optim, label)
@@ -135,20 +70,43 @@ def _generate_lr_scheduler(label, optimizer, kwargs={}):
         raise AttributeError('Invalid learning-rate scheduler keyword argument obtained')
     return lr_scheduler
 
-class _CalibratorPairedTensors(object):
+class _Calibrator(object):
     '''Bla bla
 
     '''
     def __init__(self,
-                 optimizer_parameters, optimizer_label, optimizer_kwargs,
-                 lr_scheduler_label, lr_scheduler_kwargs):
+                 optimizer_parameters,
+                 optimizer_label,
+                 lr_scheduler_label,
+                 reporter,
+                 device=None,
+                 random_seed=42,
+                 deterministic=True,
+                 optimizer_kwargs={}, lr_scheduler_kwargs={}
+                 ):
+        if device is None:
+            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = device
+
+        self.random_seed = random_seed
+        self.rng = default_rng(self.random_seed)
+        torch.manual_seed(self.rng.integers(2**63))
+        if deterministic:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else:
+            torch.backends.cudnn.deterministic = False
+            torch.backends.cudnn.benchmark = True
+
         self.optimizer = _generate_optimizer(optimizer_label, optimizer_parameters, optimizer_kwargs)
         if lr_scheduler_label is None:
             self.lr_scheduler = None
         else:
             self.lr_scheduler = _generate_lr_scheduler(lr_scheduler_label, self.optimizer, lr_scheduler_kwargs)
+        self.reporter = reporter
 
-    def train(self, model, n_epochs, dataloader):
+    def train(self, model, n_epochs, dataloader, dataloader_validate=None):
         '''Bla bla
 
         '''
@@ -157,16 +115,38 @@ class _CalibratorPairedTensors(object):
             self.reporter.reset()
             for data_inputs in dataloader:
                 self.optimizer.zero_grad()
-                loss, _ = self.cmp_prediction_loss(model, data_inputs)
-                _calibrate_params_(loss, self.optimizer, self.lr_scheduler)
-                self.reporter.append(loss.item(), epoch)
+                loss, prediction = self.cmp_prediction_loss(model, data_inputs)
+                loss.backward()
+                self.optimizer.step()
+                if not self.lr_scheduler is None:
+                    self.lr_scheduler.step()
+
+                self.reporter.append(loss=loss.item(),
+                                     prediction=prediction,
+                                     epoch=epoch,
+                                     minibatch_size=self.cmp_batch_size(data_inputs))
             self.reporter.report()
+
+            if not dataloader_validate is None:
+                self.reporter.reset()
+                for data_inputs in dataloader_validate:
+                    loss, prediction = self.cmp_prediction_loss(model, data_inputs)
+                    self.reporter.append(loss=loss.item(),
+                                         prediction=prediction,
+                                         epoch=epoch,
+                                         minibatch_size=self.cmp_batch_size(data_inputs))
+                self.reporter.report()
+
+            self.save_model_state(model)
 
     def cmp_prediction_loss(self, model, data_inputs):
         raise NotImplementedError('The method `cmp_predict_loss` should be implemented in child class')
 
     def cmp_batch_size(self, data_inputs):
         raise NotImplementedError('The method `cmp_batch_size` should be implemented in child class')
+
+    def save_model_state(self, model):
+        raise NotImplementedError('The method `save_model_state` should be implemented in child class')
 
 class _CalibratorClassLabel(CalibratorInterface):
     '''Bla bla

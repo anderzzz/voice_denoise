@@ -4,12 +4,11 @@ Written by: Anders Ohrn, March 2022
 
 '''
 import sys
-from torch import optim
+import torch
 
-from kinocilium.core.calibrators._calibrator import _CalibratorPairedTensors
+from kinocilium.core.calibrators._calibrator import _Calibrator
 
-
-class CalibratorPairedAudio(_CalibratorPairedTensors):
+class CalibratorPairedAudio(_Calibrator):
     '''Bla bla
 
     '''
@@ -19,10 +18,11 @@ class CalibratorPairedAudio(_CalibratorPairedTensors):
                  optimizer_kwargs,
                  lr_scheduler_label,
                  lr_scheduler_kwargs,
-                 run_label='Calibrator Run Label',
+                 reporter,
+                 model_save_path,
+                 model_load_path,
+                 device=None,
                  random_seed=None,
-                 f_out=sys.stdout,
-                 save_tmp_name='model_in_training',
                  num_workers=0,
                  deterministic=True):
 
@@ -31,8 +31,14 @@ class CalibratorPairedAudio(_CalibratorPairedTensors):
             optimizer_label=optimizer_label,
             optimizer_kwargs=optimizer_kwargs,
             lr_scheduler_label=lr_scheduler_label,
-            lr_scheduler_kwargs=lr_scheduler_kwargs
+            lr_scheduler_kwargs=lr_scheduler_kwargs,
+            reporter=reporter,
+            device=device,
+            random_seed=random_seed,
+            deterministic=deterministic
         )
+        self.model_save_path = model_save_path
+        self.model_load_path = model_load_path
 
     def cmp_prediction_loss(self, model, data_inputs):
         '''Compute the prediction given input and model, as well as the loss
@@ -43,39 +49,25 @@ class CalibratorPairedAudio(_CalibratorPairedTensors):
 
         return loss, denoised_
 
-    def load_model(self, path):
-        pass
-
-    def save_model(self, path):
-        pass
-
-    def validate(self, model, dataloader_validate):
-        '''Bla bla
+    def cmp_batch_size(self, data_inputs):
+        '''Compute batch size implied by the given data tensor
 
         '''
-        model.eval()
-        for data_inputs in dataloader_validate:
-            audio_noisy = data_inputs
-            audio_clean = data_inputs
+        return data_inputs['waveform_noisy_speech'].size(0)
 
-    def set_sgd_optim(self, parameters, lr=0.01, momentum=0.9, weight_decay=0.0,
-                            scheduler_step_size=15, scheduler_gamma=0.1):
-        '''Override the `optimizer` and `lr_scheduler` attributes with an SGD optimizer and an exponential decay
-        learning rate.
-        This is a convenience method for a common special case of the optimization. A child class can define other
-        PyTorch optimizers and learning-rate decay methods.
-        Args:
-            parameters: The parameters of the model to optimize
-            lr (float, optional): Initial learning rate. Defaults to 0.01
-            momentum (float, optional): Momentum of SGD. Defaults to 0.9
-            weight_decay (float, optional): L2 regularization of weights. Defaults to 0.0 (no weight regularization)
-            scheduler_step_size (int, optional): Steps between learning-rate update. Defaults to 15
-            scheduler_gamma (float, optional): Factor to reduce learning-rate with. Defaults to 0.1.
+    def save_model_state(self, model):
+        '''Save model state to disk
+
         '''
-        self.optimizer = optim.SGD(parameters, lr=lr, momentum=momentum, weight_decay=weight_decay)
-        self.lr_scheduler = optim.lr_scheduler.StepLR(self.optimizer,
-                                                 step_size=scheduler_step_size,
-                                                 gamma=scheduler_gamma)
+        torch.save({'Model State by {}'.format(self.__class__.__name__) : model.state_dict()},
+                   '{}.tar'.format(self.model_save_path))
+
+    def load_model_state(self, model):
+        '''Load model state from disk
+
+        '''
+        saved_dict = torch.load('{}.tar'.format(self.model_load_path))
+        return model.load_state_dict(saved_dict['Model State by {}'.format(self.__class__.__name__)])
 
 
 class CalibratorPairedAudioBuilder(object):
@@ -86,23 +78,21 @@ class CalibratorPairedAudioBuilder(object):
                  optimizer_kwargs,
                  lr_scheduler_label,
                  lr_scheduler_kwargs,
+                 reporter,
                  run_label='Calibrator Run Label',
                  random_seed=None,
                  f_out=sys.stdout,
                  save_tmp_name='model_in_training',
                  num_workers=0,
                  deterministic=True):
-        self._instance = CalibratorPairedAudio(optimizer_parameters,
-                                               optimizer_label,
-                                               optimizer_kwargs,
-                                               lr_scheduler_label,
-                                               lr_scheduler_kwargs,
-                                               run_label,
-                                               random_seed,
-                                               f_out,
-                                               save_tmp_name,
-                                               num_workers,
-                                               deterministic)
+        self._instance = CalibratorPairedAudio(
+            optimizer_parameters=optimizer_parameters,
+            optimizer_label=optimizer_label,
+            optimizer_kwargs=optimizer_kwargs,
+            lr_scheduler_label=lr_scheduler_label,
+            lr_scheduler_kwargs=lr_scheduler_kwargs,
+            reporter=reporter
+        )
         if not 'init_kwargs' in self._instance.__dir__():
             self._instance.init_kwargs = {}
 
