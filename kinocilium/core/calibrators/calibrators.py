@@ -6,15 +6,19 @@ Written by: Anders Ohrn, March 2022
 import sys
 from torch import optim
 
-from kinocilium.core.calibrators._calibrator import _Calibrator
+from kinocilium.core.calibrators._calibrator import _CalibratorPairedTensors
 
 
-class CalibratorPairedAudio(_Calibrator):
+class CalibratorPairedAudio(_CalibratorPairedTensors):
     '''Bla bla
 
     '''
     def __init__(self,
-                 model,
+                 optimizer_parameters,
+                 optimizer_label,
+                 optimizer_kwargs,
+                 lr_scheduler_label,
+                 lr_scheduler_kwargs,
                  run_label='Calibrator Run Label',
                  random_seed=None,
                  f_out=sys.stdout,
@@ -22,13 +26,22 @@ class CalibratorPairedAudio(_Calibrator):
                  num_workers=0,
                  deterministic=True):
 
-        super(CalibratorPairedAudio, self).__init__(model=model,
-                                                    run_label=run_label,
-                                                    random_seed=random_seed,
-                                                    f_out=f_out,
-                                                    save_tmp_name=save_tmp_name,
-                                                    num_workers=num_workers,
-                                                    deterministic=deterministic)
+        super(CalibratorPairedAudio, self).__init__(
+            optimizer_parameters=optimizer_parameters,
+            optimizer_label=optimizer_label,
+            optimizer_kwargs=optimizer_kwargs,
+            lr_scheduler_label=lr_scheduler_label,
+            lr_scheduler_kwargs=lr_scheduler_kwargs
+        )
+
+    def cmp_prediction_loss(self, model, data_inputs):
+        '''Compute the prediction given input and model, as well as the loss
+
+        '''
+        denoised_ = model(data_inputs['waveform_noisy_speech'])
+        loss = self.criterion(denoised_, data_inputs['waveform_clean_speech'])
+
+        return loss, denoised_
 
     def load_model(self, path):
         pass
@@ -36,21 +49,14 @@ class CalibratorPairedAudio(_Calibrator):
     def save_model(self, path):
         pass
 
-    def train(self, model, n_epochs, dataloader_train):
-        '''Train model
-
-        Args:
-            n_epochs (int): Number of training epochs
+    def validate(self, model, dataloader_validate):
+        '''Bla bla
 
         '''
-        model.train()
-        for epoch in range(n_epochs):
-            running_loss = 0.0
-            for data_inputs in dataloader_train:
-                n_batch = data_inputs.size(0)
-
-    def validate(self):
-        pass
+        model.eval()
+        for data_inputs in dataloader_validate:
+            audio_noisy = data_inputs
+            audio_clean = data_inputs
 
     def set_sgd_optim(self, parameters, lr=0.01, momentum=0.9, weight_decay=0.0,
                             scheduler_step_size=15, scheduler_gamma=0.1):
@@ -75,8 +81,28 @@ class CalibratorPairedAudio(_Calibrator):
 class CalibratorPairedAudioBuilder(object):
     def __init__(self):
         self._instance = None
-    def __call__(self):
-        self._instance = CalibratorPairedAudio()
+    def __call__(self, optimizer_parameters,
+                 optimizer_label,
+                 optimizer_kwargs,
+                 lr_scheduler_label,
+                 lr_scheduler_kwargs,
+                 run_label='Calibrator Run Label',
+                 random_seed=None,
+                 f_out=sys.stdout,
+                 save_tmp_name='model_in_training',
+                 num_workers=0,
+                 deterministic=True):
+        self._instance = CalibratorPairedAudio(optimizer_parameters,
+                                               optimizer_label,
+                                               optimizer_kwargs,
+                                               lr_scheduler_label,
+                                               lr_scheduler_kwargs,
+                                               run_label,
+                                               random_seed,
+                                               f_out,
+                                               save_tmp_name,
+                                               num_workers,
+                                               deterministic)
         if not 'init_kwargs' in self._instance.__dir__():
             self._instance.init_kwargs = {}
 

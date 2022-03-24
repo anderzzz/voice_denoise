@@ -6,7 +6,7 @@ DATA_SUBFOLDER = 'data2'
 
 SR = 16000
 N_SECS = 4
-BATCH_SIZE = 4
+BATCH_SIZE = 1
 
 import os
 abs_data_path = os.path.join(os.path.join(os.path.dirname(__file__), 'data'), DATA_SUBFOLDER)
@@ -17,17 +17,26 @@ torch.manual_seed(42)
 
 from kinocilium.core.models import factory as factory_model
 from kinocilium.core.data_getters import factory as factory_data
-from kinocilium.core.calibrators import factory as factory_learner
+from kinocilium.core.calibrators import factory as factory_calibrator
 
 def test_simple_init_and_train():
     convtas_net = factory_model.create('conv_tasnet')
-    plain_audio = factory_data.create('plain wav', path_to_folder=abs_data_path, read_metadata=True, slice_size=SR * N_SECS)
-    learner_paired = factory_learner.create('paired audio recreation')
+    paired_audio = factory_data.create('ms-snsd',
+                               path_to_noisyspeech=abs_data_path,
+                               path_to_cleanspeech=abs_data_path,
+                               path_to_noise=abs_data_path,
+                               read_metadata=False)
+    calibrator_paired = factory_calibrator.create('paired audio recreation',
+                                                  optimizer_parameters=convtas_net.parameters(),
+                                                  optimizer_label='SGD',
+                                                  optimizer_kwargs={'lr':0.001},
+                                                  lr_scheduler_label='StepLR',
+                                                  lr_scheduler_kwargs={'step_size':10})
 
-    learner_paired.model = convtas_net
-    learner_paired.dataloaders = {
-        'train' : DataLoader(plain_audio, batch_size=BATCH_SIZE, shuffle=False),
-        'validate' : DataLoader(plain_audio, batch_size=BATCH_SIZE, shuffle=False),
-    }
+    #calibrator_paired.connect_calibration_params(convtas_net.parameters())
+    calibrator_paired.train(model=convtas_net,
+                            n_epochs=1,
+                            dataloader=DataLoader(paired_audio, batch_size=BATCH_SIZE, shuffle=False))
 
-    learner_paired.train(model=convtas_net, n_epochs=XXX).with_data_().with_reporter_()
+if __name__ == '__main__':
+    test_simple_init_and_train()
