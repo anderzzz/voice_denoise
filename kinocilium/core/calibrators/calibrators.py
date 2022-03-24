@@ -1,4 +1,4 @@
-'''Learner modules for various types of audio tasks
+'''Calibrator modules for various types of audio tasks
 
 Written by: Anders Ohrn, March 2022
 
@@ -6,29 +6,29 @@ Written by: Anders Ohrn, March 2022
 import sys
 from torch import optim
 
-from kinocilium.core.learners._learner import _Learner
+from kinocilium.core.calibrators._calibrator import _Calibrator
 
 
-class LearnerPairedAudio(_Learner):
+class CalibratorPairedAudio(_Calibrator):
     '''Bla bla
 
     '''
     def __init__(self,
                  model,
-                 run_label='Learner Run Label',
+                 run_label='Calibrator Run Label',
                  random_seed=None,
                  f_out=sys.stdout,
                  save_tmp_name='model_in_training',
                  num_workers=0,
                  deterministic=True):
 
-        super(LearnerPairedAudio, self).__init__(model=model,
-                                                 run_label=run_label,
-                                                 random_seed=random_seed,
-                                                 f_out=f_out,
-                                                 save_tmp_name=save_tmp_name,
-                                                 num_workers=num_workers,
-                                                 deterministic=deterministic)
+        super(CalibratorPairedAudio, self).__init__(model=model,
+                                                    run_label=run_label,
+                                                    random_seed=random_seed,
+                                                    f_out=f_out,
+                                                    save_tmp_name=save_tmp_name,
+                                                    num_workers=num_workers,
+                                                    deterministic=deterministic)
 
     def load_model(self, path):
         pass
@@ -72,11 +72,11 @@ class LearnerPairedAudio(_Learner):
                                                  gamma=scheduler_gamma)
 
 
-class LearnerPairedAudioBuilder(object):
+class CalibratorPairedAudioBuilder(object):
     def __init__(self):
         self._instance = None
     def __call__(self):
-        self._instance = LearnerPairedAudio()
+        self._instance = CalibratorPairedAudio()
         if not 'init_kwargs' in self._instance.__dir__():
             self._instance.init_kwargs = {}
 

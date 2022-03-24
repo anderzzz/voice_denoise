@@ -1,6 +1,6 @@
 '''Parent to different training types on the dataset.
 
-The `_Learner` class should be inherited by any specific model learner.
+The `_Calibrator` class should be inherited by any specific model calibrator.
 
 Written by: Anders Ohrn, March 2022
 
@@ -13,8 +13,8 @@ from numpy.random import default_rng
 import torch
 from torch import optim
 
-class LearnerInterface(metaclass=abc.ABCMeta):
-    '''Formal interface for the Learner subclasses. Any class inheriting `_Learner` will have to satisfy this
+class CalibratorInterface(metaclass=abc.ABCMeta):
+    '''Formal interface for the Calibrator subclasses. Any class inheriting `_Calibrator` will have to satisfy this
     interface, otherwise it will not instantiate
     '''
     @classmethod
@@ -48,7 +48,7 @@ class LearnerInterface(metaclass=abc.ABCMeta):
         '''Save model state to file'''
         raise NotImplementedError
 
-class _Learner(LearnerInterface):
+class _Calibrator(CalibratorInterface):
     '''Parent class
 
     Args:
@@ -56,7 +56,7 @@ class _Learner(LearnerInterface):
     '''
     def __init__(self,
                  model,
-                 run_label='Learner Run Label',
+                 run_label='Calibrator Run Label',
                  random_seed=None,
                  f_out=sys.stdout,
                  save_tmp_name='model_in_training',
