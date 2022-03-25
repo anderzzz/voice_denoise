@@ -13,6 +13,7 @@ torch.manual_seed(42)
 
 from kinocilium.core.data_getters import factory as factory_data
 from kinocilium.core.calibrators import factory as factory_calibrator
+from kinocilium.core.reporter import ReporterClassification
 
 class DummyModel(torch.nn.Module):
     def __init__(self):
@@ -25,7 +26,8 @@ class DummyModel(torch.nn.Module):
         self.nonlins = torch.nn.Sequential(
             torch.nn.Linear(in_features=27, out_features=27),
             torch.nn.PReLU(),
-            torch.nn.Linear(in_features=27, out_features=10)
+            torch.nn.Linear(in_features=27, out_features=10),
+            torch.nn.Softmax()
         )
 
     def forward(self, x):
@@ -46,5 +48,21 @@ def test_simple_init_and_call():
                                            )
     calibrator.train(model, 1, DataLoader(data, batch_size=10))
 
+def test_simple_init_and_call_report():
+    data = factory_data.create('audio-minst', path_to_folder=abs_data_path, label='digit', read_metadata=False, slice_size=23000)
+    model = DummyModel()
+    xx= model(torch.unsqueeze(data[0][1]['waveform'], dim=0))
+
+    assert tuple(xx.shape) == (1, 10)
+
+    calibrator = factory_calibrator.create('labelled audio classification',
+                                           optimizer_parameters=model.parameters(),
+                                           reporter=ReporterClassification(dataset_size=len(data)),
+                                           )
+    calibrator.train(model, 1, DataLoader(data, batch_size=10))
+
+
+
 if __name__ == '__main__':
     test_simple_init_and_call()
+    test_simple_init_and_call_report()

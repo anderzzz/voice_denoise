@@ -31,23 +31,28 @@ class CalibratorInterface(metaclass=abc.ABCMeta):
                 callable(subclass.load_model))
 
     @abc.abstractmethod
-    def train(self, n_epochs: int):
+    def train(self, model, n_epochs, dataloader, dataloader_validate):
         '''Train model'''
         raise NotImplementedError
 
     @abc.abstractmethod
-    def validate(self, **kwargs):
-        '''Evaluate model'''
+    def cmp_prediction_loss(self, model, data_inputs):
+        '''Compute the loss and prediction given model and mini-batch of data'''
         raise NotImplementedError
 
     @abc.abstractmethod
-    def save_model(self, path: str):
+    def cmp_batch_size(self, data_inputs):
+        '''Compute the batch size given mini-batch of data'''
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def save_model_state(self, model):
         '''Save model state to file'''
         raise NotImplementedError
 
     @abc.abstractmethod
-    def load_model(self, path: str):
-        '''Save model state to file'''
+    def load_model_state(self, model):
+        '''Load model state from file'''
         raise NotImplementedError
 
 def _generate_optimizer(label, parameters, kwargs={}):
@@ -72,7 +77,7 @@ def _generate_lr_scheduler(label, optimizer, kwargs={}):
         raise AttributeError('Invalid learning-rate scheduler keyword argument obtained')
     return lr_scheduler
 
-class _Calibrator(object):
+class _Calibrator(CalibratorInterface):
     '''Bla bla
 
     '''
@@ -80,7 +85,9 @@ class _Calibrator(object):
                  optimizer_parameters,
                  optimizer_label,
                  lr_scheduler_label,
-                 reporter,
+                 reporter=None,
+                 model_save_path=None,
+                 model_load_path=None,
                  device=None,
                  random_seed=42,
                  deterministic=True,
@@ -111,36 +118,49 @@ class _Calibrator(object):
             self.reporter = ReporterNull()
         else:
            self.reporter = reporter
+        self.model_save_path = model_save_path
+        self.model_load_path = model_load_path
 
     def train(self, model, n_epochs, dataloader, dataloader_validate=None):
         '''Bla bla
 
         '''
-        model.train()
         for epoch in range(n_epochs):
+            model.train()
             self.reporter.reset()
-            for data_inputs in dataloader:
+            for k_batch, data_inputs in enumerate(dataloader):
                 self.optimizer.zero_grad()
                 loss, prediction = self.cmp_prediction_loss(model, data_inputs)
                 loss.backward()
+
                 self.optimizer.step()
                 if not self.lr_scheduler is None:
                     self.lr_scheduler.step()
 
-                self.reporter.append(loss=loss.item(),
-                                     prediction=prediction,
-                                     epoch=epoch,
-                                     minibatch_size=self.cmp_batch_size(data_inputs))
+                self.reporter.append(
+                    descriptor='Training Loop Report Vector',
+                    loss=loss.item(),
+                    prediction=prediction,
+                    epoch=epoch,
+                    k_batch=k_batch,
+                    minibatch_size=self.cmp_batch_size(data_inputs)
+                )
             self.reporter.report()
 
             if not dataloader_validate is None:
+                model.eval()
                 self.reporter.reset()
-                for data_inputs in dataloader_validate:
+                for k_batch, data_inputs in enumerate(dataloader_validate):
                     loss, prediction = self.cmp_prediction_loss(model, data_inputs)
-                    self.reporter.append(loss=loss.item(),
-                                         prediction=prediction,
-                                         epoch=epoch,
-                                         minibatch_size=self.cmp_batch_size(data_inputs))
+
+                    self.reporter.append(
+                        descriptor='Validation Loop Report Vector',
+                        loss=loss.item(),
+                        prediction=prediction,
+                        epoch=epoch,
+                        k_batch=k_batch,
+                        minibatch_size=self.cmp_batch_size(data_inputs)
+                    )
                 self.reporter.report()
 
             self.save_model_state(model)
@@ -152,33 +172,19 @@ class _Calibrator(object):
         raise NotImplementedError('The method `cmp_batch_size` should be implemented in child class')
 
     def save_model_state(self, model):
-        raise NotImplementedError('The method `save_model_state` should be implemented in child class')
-
-class _CalibratorClassLabel(CalibratorInterface):
-    '''Bla bla
-
-    '''
-    def __init__(self):
-        pass
-
-
-    def train(self, model, n_epochs, dloader):
-        '''Bla bla
+        '''Save model state to disk. This can be overridden in child classes if needed.
 
         '''
-        model.train()
-        for epoch in range(n_epochs):
+        torch.save({'Model State by {}'.format(self.__class__.__name__) : model.state_dict()},
+                   '{}.tar'.format(self.model_save_path))
 
-            running_loss = 0.0
-            running_correct = 0
-            for data_inputs in dloader:
-                self.optimizer.zero_grad()
-                loss, prediction = self._cmp_prediction_loss(data_inputs)
-                _calibrate_params_(loss, self.optimizer, self.lr_scheduler)
-                running_loss += loss.item() * size_batch
-                running_correct += torch.sum(prediction == XXX)
+    def load_model_state(self, model):
+        '''Load model state from disk. This can be overridden in child classes if needed.
 
-
+        '''
+        saved_dict = torch.load('{}.tar'.format(self.model_load_path))
+        model.load_state_dict(saved_dict['Model State by {}'.format(self.__class__.__name__)])
+        return model
 
 def progress_bar(current, total, barlength=20):
     '''Print progress of training of a batch. Helpful in PyCharm'''
