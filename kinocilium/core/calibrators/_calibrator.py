@@ -13,6 +13,8 @@ from numpy.random import default_rng
 import torch
 from torch import optim
 
+from kinocilium.core.reporter import ReporterNull
+
 class CalibratorInterface(metaclass=abc.ABCMeta):
     '''Formal interface for the Calibrator subclasses. Any class inheriting `_Calibrator` will have to satisfy this
     interface, otherwise it will not instantiate
@@ -104,7 +106,11 @@ class _Calibrator(object):
             self.lr_scheduler = None
         else:
             self.lr_scheduler = _generate_lr_scheduler(lr_scheduler_label, self.optimizer, lr_scheduler_kwargs)
-        self.reporter = reporter
+
+        if reporter is None:
+            self.reporter = ReporterNull()
+        else:
+           self.reporter = reporter
 
     def train(self, model, n_epochs, dataloader, dataloader_validate=None):
         '''Bla bla

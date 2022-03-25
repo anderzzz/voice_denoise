@@ -9,6 +9,7 @@ Written by: Anders Ohrn, March 2020
 '''
 from kinocilium.core._factory import _Factory
 from kinocilium.core.calibrators.calibrators import CalibratorPairedAudioBuilder
+from kinocilium.core.calibrators.calibrators import CalibratorLabelledAudioBuilder
 
 class AudioCalibratorFactory(_Factory):
     '''Factory method for model object creation. Documented in parent class.
@@ -19,3 +20,4 @@ class AudioCalibratorFactory(_Factory):
 
 factory = AudioCalibratorFactory()
 factory.register_builder('paired audio recreation', CalibratorPairedAudioBuilder())
+factory.register_builder('labelled audio classification', CalibratorLabelledAudioBuilder())
