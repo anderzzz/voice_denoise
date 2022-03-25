@@ -10,6 +10,7 @@ Written by: Anders Ohrn, March 2020
 from kinocilium.core._factory import _Factory
 from kinocilium.core.data_getters.audio_plain import AudioPlainWAVDataBuilder
 from kinocilium.core.data_getters.mssnsd_noisyspeech import AudioMSSNSDDataBuilder
+from kinocilium.core.data_getters.audiominst import AudioMINSTDataBuilder
 
 class AudioDataFactory(_Factory):
     '''Audio Data Factory. Documented in parent class
@@ -21,3 +22,4 @@ class AudioDataFactory(_Factory):
 factory = AudioDataFactory()
 factory.register_builder('plain wav', AudioPlainWAVDataBuilder())
 factory.register_builder('ms-snsd', AudioMSSNSDDataBuilder())
+factory.register_builder('audio-minst', AudioMINSTDataBuilder())
