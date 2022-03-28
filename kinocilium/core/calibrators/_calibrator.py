@@ -141,6 +141,7 @@ class _Calibrator(CalibratorInterface):
                     descriptor='Training Loop Report Vector',
                     loss=loss.item(),
                     prediction=prediction,
+                    data_inputs=data_inputs,
                     epoch=epoch,
                     k_batch=k_batch,
                     minibatch_size=self.cmp_batch_size(data_inputs)
@@ -157,6 +158,7 @@ class _Calibrator(CalibratorInterface):
                         descriptor='Validation Loop Report Vector',
                         loss=loss.item(),
                         prediction=prediction,
+                        data_inputs=data_inputs,
                         epoch=epoch,
                         k_batch=k_batch,
                         minibatch_size=self.cmp_batch_size(data_inputs)

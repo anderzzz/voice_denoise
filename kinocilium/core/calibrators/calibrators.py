@@ -40,10 +40,11 @@ class CalibratorLabelledAudio(_Calibrator):
         self.criterion = torch.nn.CrossEntropyLoss()
 
     def cmp_prediction_loss(self, model, data_inputs):
-        x_inp = data_inputs[1]['waveform']
+        x_inp = data_inputs[1]['waveform'].to(self.device)
         y_label = data_inputs[0]
-        y_label_predict = model(x_inp)
-        loss = self.criterion(y_label_predict, y_label)
+        _y_label_predict = model(x_inp)
+        loss = self.criterion(_y_label_predict, y_label)
+        _, y_label_predict = torch.max(_y_label_predict, 1)
         return loss, y_label_predict
 
     def cmp_batch_size(self, data_inputs):

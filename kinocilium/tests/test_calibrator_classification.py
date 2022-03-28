@@ -57,9 +57,10 @@ def test_simple_init_and_call_report():
 
     calibrator = factory_calibrator.create('labelled audio classification',
                                            optimizer_parameters=model.parameters(),
-                                           reporter=ReporterClassification(dataset_size=len(data)),
+                                           reporter=ReporterClassification(dataset_size=len(data),
+                                                                           append_from_inputs=0),
                                            )
-    calibrator.train(model, 1, DataLoader(data, batch_size=10))
+    calibrator.train(model, 1, DataLoader(data, batch_size=6))
 
 
 
