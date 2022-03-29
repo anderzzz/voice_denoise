@@ -5,7 +5,6 @@ The `_Calibrator` class should be inherited by any specific model calibrator.
 Written by: Anders Ohrn, March 2022
 
 '''
-import sys
 import abc
 
 from numpy.random import default_rng
@@ -13,7 +12,7 @@ from numpy.random import default_rng
 import torch
 from torch import optim
 
-from kinocilium.core.reporter import ReporterNull
+from kinocilium.core.calibrators.reporter import ReporterNull
 
 class CalibratorInterface(metaclass=abc.ABCMeta):
     '''Formal interface for the Calibrator subclasses. Any class inheriting `_Calibrator` will have to satisfy this
@@ -31,7 +30,7 @@ class CalibratorInterface(metaclass=abc.ABCMeta):
                 callable(subclass.load_model))
 
     @abc.abstractmethod
-    def train(self, model, n_epochs, dataloader, dataloader_validate):
+    def train(self, model, n_epochs, dataloader, dataloader_validate, reporter):
         '''Train model'''
         raise NotImplementedError
 
@@ -85,7 +84,6 @@ class _Calibrator(CalibratorInterface):
                  optimizer_parameters,
                  optimizer_label,
                  lr_scheduler_label,
-                 reporter=None,
                  model_save_path=None,
                  model_load_path=None,
                  device=None,
@@ -114,20 +112,19 @@ class _Calibrator(CalibratorInterface):
         else:
             self.lr_scheduler = _generate_lr_scheduler(lr_scheduler_label, self.optimizer, lr_scheduler_kwargs)
 
-        if reporter is None:
-            self.reporter = ReporterNull()
-        else:
-           self.reporter = reporter
         self.model_save_path = model_save_path
         self.model_load_path = model_load_path
 
-    def train(self, model, n_epochs, dataloader, dataloader_validate=None):
+    def train(self, model, n_epochs, dataloader, dataloader_validate=None, reporter=None):
         '''Bla bla
 
         '''
+        if reporter is None:
+            reporter = ReporterNull()
+
         for epoch in range(n_epochs):
             model.train()
-            self.reporter.reset()
+            reporter.reset()
             for k_batch, data_inputs in enumerate(dataloader):
                 self.optimizer.zero_grad()
                 loss, prediction = self.cmp_prediction_loss(model, data_inputs)
@@ -137,33 +134,35 @@ class _Calibrator(CalibratorInterface):
                 if not self.lr_scheduler is None:
                     self.lr_scheduler.step()
 
-                self.reporter.append(
+                reporter.append(
                     descriptor='Training Loop Report Vector',
                     loss=loss.item(),
                     prediction=prediction,
                     data_inputs=data_inputs,
                     epoch=epoch,
                     k_batch=k_batch,
+                    dataset_size=len(dataloader.dataset),
                     minibatch_size=self.cmp_batch_size(data_inputs)
                 )
-            self.reporter.report()
+            reporter.report()
 
             if not dataloader_validate is None:
                 model.eval()
-                self.reporter.reset()
+                reporter.reset()
                 for k_batch, data_inputs in enumerate(dataloader_validate):
                     loss, prediction = self.cmp_prediction_loss(model, data_inputs)
 
-                    self.reporter.append(
+                    reporter.append(
                         descriptor='Validation Loop Report Vector',
                         loss=loss.item(),
                         prediction=prediction,
                         data_inputs=data_inputs,
                         epoch=epoch,
                         k_batch=k_batch,
+                        dataset_size=len(dataloader_validate.dataset),
                         minibatch_size=self.cmp_batch_size(data_inputs)
                     )
-                self.reporter.report()
+                reporter.report()
 
             self.save_model_state(model)
 
@@ -177,11 +176,16 @@ class _Calibrator(CalibratorInterface):
         '''Save model state to disk. This can be overridden in child classes if needed.
 
         '''
-        torch.save({'Model State by {}'.format(self.__class__.__name__) : model.state_dict()},
-                   '{}.tar'.format(self.model_save_path))
+        if not self.model_save_path is None:
+            torch.save({'Model State by {}'.format(self.__class__.__name__) : model.state_dict()},
+                       '{}.tar'.format(self.model_save_path))
+        else:
+            pass
 
     def load_model_state(self, model):
         '''Load model state from disk. This can be overridden in child classes if needed.
+
+        NOTE: Not yet integrated in execution logic
 
         '''
         saved_dict = torch.load('{}.tar'.format(self.model_load_path))

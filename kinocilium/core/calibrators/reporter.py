@@ -23,7 +23,7 @@ class ReporterInterface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def append(self, descriptor, loss, prediction, data_inputs, epoch, k_batch, minibatch_size):
+    def append(self, descriptor, loss, prediction, data_inputs, epoch, k_batch, dataset_size, minibatch_size):
         '''Append data for future reporting'''
         raise NotImplementedError
 
@@ -38,11 +38,9 @@ class ReporterClassification(ReporterInterface):
 
     '''
     def __init__(self,
-                 dataset_size,
                  report_level='high',
                  f_out=sys.stdout,
                  append_from_inputs=0):
-        self.dataset_size = dataset_size
         self._report_level_map = {'low' : 0, 'high' : 1, 'very high' : 2}
         try:
             self.report_level = self._report_level_map[report_level]
@@ -68,7 +66,7 @@ class ReporterClassification(ReporterInterface):
             print('New iteration begins...',
                   file=self.f_out)
 
-    def append(self, descriptor, loss, prediction, data_inputs, epoch, k_batch, minibatch_size):
+    def append(self, descriptor, loss, prediction, data_inputs, epoch, k_batch, dataset_size, minibatch_size):
         self.loss_data.append((descriptor,
                                loss,
                                prediction,
@@ -76,7 +74,7 @@ class ReporterClassification(ReporterInterface):
                                epoch, k_batch, minibatch_size))
         self.n_instances += minibatch_size
         if self.report_level >= self._report_level_map['high']:
-            print ('In epoch {0}, processed data: {1:.1f}%'.format(epoch, 100.0 * self.n_instances / self.dataset_size),
+            print ('In epoch {0}, processed data: {1:.1f}%'.format(epoch, 100.0 * self.n_instances / dataset_size),
                    file=self.f_out)
 
     def report(self):

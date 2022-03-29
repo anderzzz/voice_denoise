@@ -18,7 +18,7 @@ torch.manual_seed(42)
 from kinocilium.core.models import factory as factory_model
 from kinocilium.core.data_getters import factory as factory_data
 from kinocilium.core.calibrators import factory as factory_calibrator
-from kinocilium.core.reporter import ReporterRunningLoss
+from kinocilium.core.calibrators.reporter import ReporterRunningLoss
 
 def test_simple_init_and_train():
     convtas_net = factory_model.create('conv_tasnet')

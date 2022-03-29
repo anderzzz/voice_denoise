@@ -13,7 +13,7 @@ torch.manual_seed(42)
 
 from kinocilium.core.data_getters import factory as factory_data
 from kinocilium.core.calibrators import factory as factory_calibrator
-from kinocilium.core.reporter import ReporterClassification
+from kinocilium.core.calibrators.reporter import ReporterClassification
 
 class DummyModel(torch.nn.Module):
     def __init__(self):
@@ -56,11 +56,13 @@ def test_simple_init_and_call_report():
     assert tuple(xx.shape) == (1, 10)
 
     calibrator = factory_calibrator.create('labelled audio classification',
-                                           optimizer_parameters=model.parameters(),
-                                           reporter=ReporterClassification(dataset_size=len(data),
-                                                                           append_from_inputs=0),
+                                           optimizer_parameters=model.parameters()
                                            )
-    calibrator.train(model, 1, DataLoader(data, batch_size=6))
+    calibrator.train(model=model,
+                     n_epochs=1,
+                     dataloader=DataLoader(data, batch_size=6),
+                     reporter=ReporterClassification(append_from_inputs=0)
+                     )
 
 
 

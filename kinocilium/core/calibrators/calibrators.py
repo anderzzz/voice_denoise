@@ -6,6 +6,7 @@ Written by: Anders Ohrn, March 2022
 import torch
 
 from kinocilium.core.calibrators._calibrator import _Calibrator
+from kinocilium.core.calibrators.reporter import ReporterClassification
 
 class CalibratorLabelledAudio(_Calibrator):
     '''Bla bla
@@ -17,9 +18,8 @@ class CalibratorLabelledAudio(_Calibrator):
                  optimizer_kwargs,
                  lr_scheduler_label,
                  lr_scheduler_kwargs,
-                 reporter,
-                 model_save_path,
-                 model_load_path,
+                 model_save_path=None,
+                 model_load_path=None,
                  device=None,
                  random_seed=None,
                  deterministic=True):
@@ -30,7 +30,6 @@ class CalibratorLabelledAudio(_Calibrator):
             optimizer_kwargs=optimizer_kwargs,
             lr_scheduler_label=lr_scheduler_label,
             lr_scheduler_kwargs=lr_scheduler_kwargs,
-            reporter=reporter,
             model_save_path=model_save_path,
             model_load_path=model_load_path,
             device=device,
@@ -50,6 +49,14 @@ class CalibratorLabelledAudio(_Calibrator):
     def cmp_batch_size(self, data_inputs):
         return data_inputs[1]['waveform'].size(0)
 
+    def train(self, model, n_epochs, dataloader, dataloader_validate=None, reporter=None):
+        if reporter is None:
+            reporter_ = ReporterClassification()
+        else:
+            reporter_ = reporter
+        super().train(model=model, n_epochs=n_epochs, dataloader=dataloader,
+                      dataloader_validate=dataloader_validate, reporter=reporter_)
+
 class CalibratorPairedAudio(_Calibrator):
     '''Bla bla
 
@@ -60,7 +67,6 @@ class CalibratorPairedAudio(_Calibrator):
                  optimizer_kwargs,
                  lr_scheduler_label,
                  lr_scheduler_kwargs,
-                 reporter,
                  model_save_path,
                  model_load_path,
                  device=None,
@@ -73,7 +79,6 @@ class CalibratorPairedAudio(_Calibrator):
             optimizer_kwargs=optimizer_kwargs,
             lr_scheduler_label=lr_scheduler_label,
             lr_scheduler_kwargs=lr_scheduler_kwargs,
-            reporter=reporter,
             model_save_path=model_save_path,
             model_load_path=model_load_path,
             device=device,
@@ -106,7 +111,6 @@ class CalibratorPairedAudioBuilder(object):
                  optimizer_kwargs={'lr':0.001},
                  lr_scheduler_label=None,
                  lr_scheduler_kwargs={},
-                 reporter=None,
                  model_save_path=None,
                  model_load_path=None,
                  device=None,
@@ -118,7 +122,6 @@ class CalibratorPairedAudioBuilder(object):
             optimizer_kwargs=optimizer_kwargs,
             lr_scheduler_label=lr_scheduler_label,
             lr_scheduler_kwargs=lr_scheduler_kwargs,
-            reporter=reporter,
             model_save_path=model_save_path,
             model_load_path=model_load_path,
             device=device,
@@ -138,7 +141,6 @@ class CalibratorLabelledAudioBuilder(object):
                  optimizer_kwargs={'lr':0.001},
                  lr_scheduler_label=None,
                  lr_scheduler_kwargs={},
-                 reporter=None,
                  model_save_path=None,
                  model_load_path=None,
                  device=None,
@@ -150,7 +152,6 @@ class CalibratorLabelledAudioBuilder(object):
             optimizer_kwargs=optimizer_kwargs,
             lr_scheduler_label=lr_scheduler_label,
             lr_scheduler_kwargs=lr_scheduler_kwargs,
-            reporter=reporter,
             model_save_path=model_save_path,
             model_load_path=model_load_path,
             device=device,
