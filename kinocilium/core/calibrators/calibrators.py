@@ -7,6 +7,7 @@ import torch
 
 from kinocilium.core.calibrators._calibrator import _Calibrator
 from kinocilium.core.calibrators.reporter import ReporterClassification
+from kinocilium.core.loss_criteria import ScaleInvariantSource2DistortionRatio, Source2DistortionRatio
 
 class CalibratorLabelledAudio(_Calibrator):
     '''Bla bla
@@ -69,6 +70,7 @@ class CalibratorPairedAudio(_Calibrator):
                  lr_scheduler_kwargs,
                  model_save_path,
                  model_load_path,
+                 loss_type,
                  device=None,
                  random_seed=None,
                  deterministic=True):
@@ -85,15 +87,28 @@ class CalibratorPairedAudio(_Calibrator):
             random_seed=random_seed,
             deterministic=deterministic
         )
-        self.criterion = None
+
+        if isinstance(loss_type, str):
+            if loss_type == 'SI-SDR':
+                self.criterion = ScaleInvariantSource2DistortionRatio()
+            elif loss_type == 'SDR':
+                self.criterion = Source2DistortionRatio()
+            else:
+                raise ValueError('Unknown `loss_type` specification: {}'.format(loss_type))
+
+        elif isinstance(loss_type, torch.nn.Module):
+            self.criterion = loss_type
+
+        else:
+            raise ValueError('The `loss_type` should be either a string or a PyTorch Module')
 
     def cmp_prediction_loss(self, model, data_inputs):
         '''Compute the prediction given input and model, as well as the loss
 
         '''
         denoised_ = model(data_inputs['waveform_noisy_speech'])
-        raise NotImplementedError('The criterion for audio loss not implemented')
         loss = self.criterion(denoised_, data_inputs['waveform_clean_speech'])
+        raise RuntimeError()
 
         return loss, denoised_
 
@@ -113,6 +128,7 @@ class CalibratorPairedAudioBuilder(object):
                  lr_scheduler_kwargs={},
                  model_save_path=None,
                  model_load_path=None,
+                 loss_type='SI-SDR',
                  device=None,
                  random_seed=None,
                  deterministic=True):
@@ -124,6 +140,7 @@ class CalibratorPairedAudioBuilder(object):
             lr_scheduler_kwargs=lr_scheduler_kwargs,
             model_save_path=model_save_path,
             model_load_path=model_load_path,
+            loss_type=loss_type,
             device=device,
             random_seed=random_seed,
             deterministic=deterministic
