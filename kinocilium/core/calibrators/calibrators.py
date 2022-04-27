@@ -9,6 +9,8 @@ from kinocilium.core.calibrators._calibrator import _Calibrator
 from kinocilium.core.calibrators.reporter import ReporterClassification
 from kinocilium.core.loss_criteria import ScaleInvariantSource2DistortionRatio, Source2DistortionRatio
 
+torch.autograd.set_detect_anomaly(True)
+
 class CalibratorLabelledAudio(_Calibrator):
     '''Bla bla
 
@@ -106,11 +108,31 @@ class CalibratorPairedAudio(_Calibrator):
         '''Compute the prediction given input and model, as well as the loss
 
         '''
-        denoised_ = model(data_inputs['waveform_noisy_speech'])
-        loss = self.criterion(denoised_, data_inputs['waveform_clean_speech'])
-        raise RuntimeError()
+        denoised_ = model(data_inputs['waveform_noisy_speech']).permute(1,0,2)
+        print (denoised_.shape)
+        ref_clean_speech = data_inputs['waveform_clean_speech'].permute(1,0,2)
+        print (ref_clean_speech.shape)
+        if ref_clean_speech.shape[0] != 1:
+            raise RuntimeError('The reference clean speech is multisource. The paired audio method assumed one source only')
+        else:
+            ref_clean_speech = ref_clean_speech.squeeze(dim=0)
 
-        return loss, denoised_
+        loss_final = None
+        k_source_final = -1
+        for k_source, model_clean_source in enumerate(denoised_):
+            loss = self.criterion(model_clean_source, ref_clean_speech)
+
+            if loss_final is None:
+                loss_final = loss
+                k_source_final = k_source
+            elif loss_final.item() > loss.item():
+                loss_final = loss
+                k_source_final = k_source
+
+        prediction = denoised_.permute(1,0,2)
+        prediction = prediction[:,k_source_final: k_source_final + 1,:]
+
+        return loss_final, prediction
 
     def cmp_batch_size(self, data_inputs):
         '''Compute batch size implied by the given data tensor

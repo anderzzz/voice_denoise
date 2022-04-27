@@ -16,8 +16,8 @@ def _cmp_s_starget(s_estimate, s_actual, n_batch):
 def _cmp_e_noise(s_estimate, s_target, n_batch):
     return s_estimate - s_target
 
-def _cmp_zero_mean(s, n_batch):
-    return torch.sub(s, torch.mean(s, dim=1).view(n_batch, -1))
+def _cmp_zero_mean(s, n_batch, dim=1):
+    return torch.sub(s, torch.mean(s, dim=dim).view(n_batch, -1))
 
 class Source2ArtifactRatio(nn.Module):
     '''Bla bla
